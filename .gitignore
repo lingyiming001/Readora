@@ -1,0 +1,13 @@
+# Local and generated files (project-continuity)
+.agents/
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.*.example
+!.env.*.sample
+
+.build/
+deploy/*.app/
