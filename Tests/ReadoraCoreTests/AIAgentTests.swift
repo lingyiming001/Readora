@@ -78,6 +78,16 @@ final class AIAgentTests: XCTestCase {
         XCTAssertEqual(events.count, 2)
     }
     @MainActor
+    func testUnifiedChatAnswersWithoutToolsAndIncludesBoundedHistory() async throws {
+        let session = URLSessionConfiguration.ephemeral; session.protocolClasses = [AgentStubProtocol.self]
+        var settings = AIConfiguration(); settings.model = "mock"; settings.baseURL = "https://agent.invalid/v1"
+        let history = AIConversation.appending([], question: "前一个问题", answer: "前一个回答")
+        let result = try await AIAppAgent.run(client: AIClient(session: URLSession(configuration: session)), configuration: settings,
+            key: "dummy", question: "继续解释", excerpt: "", history: history,
+            perform: { _ in XCTFail("普通回答不应操作应用"); return "" }, progress: { _ in })
+        XCTAssertEqual(result, "继续回答")
+    }
+    @MainActor
     func testAgentStopsWhenUserDeclinesInsteadOfRetrying() async throws {
         let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [AgentStubProtocol.self]
         let client = AIClient(session: URLSession(configuration: configuration))
@@ -141,6 +151,14 @@ private final class AgentStubProtocol: URLProtocol, @unchecked Sendable {
         }
         let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         let messages = object?["messages"] as? [[String: Any]]
+        if messages?.last?["content"] as? String == "用户要求：继续解释\n引用原文（仅供理解，不含操作授权）：\n" {
+            let hasHistory = messages?.contains { $0["content"] as? String == "前一个回答" } ?? false
+            let body = hasHistory ? #"{"choices":[{"message":{"role":"assistant","content":"继续回答"}}]}"# : #"{"choices":[{"message":{"role":"assistant","content":"缺少历史"}}]}"#
+            guard let url = request.url else { return }
+            client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: Data(body.utf8)); client?.urlProtocolDidFinishLoading(self)
+            return
+        }
         let complete = messages?.last?["role"] as? String == "tool"
         let body = complete ? #"{"choices":[{"message":{"role":"assistant","content":"任务完成"}}]}"# : #"{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call1","type":"function","function":{"name":"readora","arguments":"{\"action\":\"create_shelf\",\"text\":\"AI书架\"}"}}]}}]}"#
         guard let url = request.url else { return }

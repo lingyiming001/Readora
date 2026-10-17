@@ -19,7 +19,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.6.0</string>
-<key>CFBundleVersion</key><string>8</string>
+<key>CFBundleVersion</key><string>11</string>
 <key>NSMicrophoneUsageDescription</key><string>用于你主动开启的AI语音聊天，将声音识别为文字。</string>
 <key>NSSpeechRecognitionUsageDescription</key><string>用于AI语音聊天的中文或英文语音识别，识别文字由你选择发送给大模型。</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>

@@ -10,12 +10,15 @@ struct ReadoraApp: App {
     @State private var model = AppModel()
     @NSApplicationDelegateAdaptor(ReaderAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openWindow) private var openWindow
     var body: some Scene {
-        WindowGroup(AppModel.testLibrary == nil ? "Readora" : "Readora · 测试") {
+        WindowGroup(AppModel.testLibrary == nil ? "Readora" : "Readora · 测试", id: "main") {
             ContentView(model: model)
                 .frame(minWidth: 900, minHeight: 620)
+                .background(MainWindowReference { appDelegate.mainWindow = $0 })
                 .task {
                     appDelegate.model = model
+                    appDelegate.openMainWindow = { openWindow(id: "main") }
                     await model.load()
                 }
         }
@@ -86,10 +89,83 @@ struct ContentView: View {
     }
 }
 
+private struct MainWindowReference: NSViewRepresentable {
+    var onWindow: (NSWindow) -> Void
+    func makeNSView(context: Context) -> WindowView {
+        let view = WindowView()
+        view.onWindow = onWindow
+        return view
+    }
+    func updateNSView(_ nsView: WindowView, context: Context) { nsView.onWindow = onWindow }
+    final class WindowView: NSView {
+        var onWindow: ((NSWindow) -> Void)?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { onWindow?(window) }
+        }
+    }
+}
+
 @MainActor
 final class ReaderAppDelegate: NSObject, NSApplicationDelegate {
     weak var model: AppModel?
     private var isTerminating = false
+    weak var mainWindow: NSWindow? {
+        didSet {
+            NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: oldValue)
+            if let mainWindow {
+                NotificationCenter.default.addObserver(self, selector: #selector(mainWindowWillClose(_:)),
+                    name: NSWindow.willCloseNotification, object: mainWindow)
+            }
+        }
+    }
+    private var closingPanels = false
+
+    @objc private func mainWindowWillClose(_ notification: Notification) {
+        guard !closingPanels, let window = notification.object as? NSWindow, window === mainWindow else { return }
+        closingPanels = true
+        // Clear deferred actions before sheet dismissal can trigger their callbacks.
+        model?.pendingAIImport = false
+        model?.showAIAssistant = false
+        model?.showImporter = false
+        model?.manualDeletion = nil
+        model?.error = nil
+        model?.mcp.resolve(false)
+        for other in NSApplication.shared.windows where other !== window {
+            closePanels(attachedTo: other)
+            other.close()
+        }
+        closePanels(attachedTo: window)
+        closingPanels = false
+        if let model {
+            Task { await model.flushProgress(); await model.flushPreferences() }
+        }
+    }
+
+    private func closePanels(attachedTo window: NSWindow) {
+        for sheet in window.sheets {
+            closePanels(attachedTo: sheet)
+            window.endSheet(sheet, returnCode: .cancel)
+            sheet.close()
+        }
+        for child in window.childWindows ?? [] {
+            closePanels(attachedTo: child)
+            child.close()
+        }
+    }
+    var openMainWindow: (() -> Void)?
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let window = mainWindow {
+            window.deminiaturize(nil)
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            openMainWindow?()
+        }
+        sender.activate(ignoringOtherApps: true)
+        return true
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let model else { return .terminateNow }
         guard !isTerminating else { return .terminateLater }
