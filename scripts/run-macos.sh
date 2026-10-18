@@ -9,23 +9,16 @@ cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 cp .build/debug/ReadoraMCP "$app/Contents/MacOS/ReadoraMCP"
 cp .build/debug/Readora "$app/Contents/MacOS/Readora.next"
 mv -f "$app/Contents/MacOS/Readora.next" "$app/Contents/MacOS/Readora"
-cat > "$app/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>CFBundleExecutable</key><string>Readora</string>
-<key>CFBundleIdentifier</key><string>local.readora.mac</string>
-<key>CFBundleName</key><string>Readora</string>
-<key>CFBundleIconFile</key><string>AppIcon</string>
-<key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.6.0</string>
-<key>CFBundleVersion</key><string>11</string>
-<key>NSMicrophoneUsageDescription</key><string>用于你主动开启的AI语音聊天，将声音识别为文字。</string>
-<key>NSSpeechRecognitionUsageDescription</key><string>用于AI语音聊天的中文或英文语音识别，识别文字由你选择发送给大模型。</string>
-<key>LSMinimumSystemVersion</key><string>14.0</string>
-<key>NSHighResolutionCapable</key><true/>
-</dict></plist>
-PLIST
+python3 - "$app/Contents/Info.plist" <<'PYINFO'
+import pathlib, plistlib, re, sys
+settings = dict(re.findall(r"^(\w+)\s*=\s*(.+?)\s*$", pathlib.Path("Resources/Readora.xcconfig").read_text(), re.M))
+settings["EXECUTABLE_NAME"] = settings["PRODUCT_NAME"]
+info = plistlib.loads(pathlib.Path("Resources/Info.plist").read_bytes())
+for key, value in info.items():
+    if isinstance(value, str):
+        info[key] = re.sub(r"\$\((\w+)\)", lambda match: settings[match[1]], value)
+pathlib.Path(sys.argv[1]).write_bytes(plistlib.dumps(info, sort_keys=False))
+PYINFO
 codesign --force --sign - "$app/Contents/MacOS/ReadoraMCP"
 codesign --force --sign - --entitlements Resources/Readora.entitlements "$app"
 if [[ "${READORA_SKIP_LAUNCH:-0}" != "1" ]]; then

@@ -1,6 +1,6 @@
 # 08 · Xcode 项目目录结构
 
-以下是待创建的工程蓝图，最初仅交付文档；当前实际工程采用根目录Package.swift与Sources/ReadoraCore、ReadoraRendering、ReadoraMac三个target（CZlib为系统桥接），Tests/ReadoraCoreTests负责领域与排版测试。下方Xcode工程树仍为目标蓝图。初期使用一个本地 Package 多 target，避免仓库碎片化；模块数可合并，但禁止循环依赖。
+当前已有根目录 `Readora.xcodeproj`：`ReadoraMac` App、`ReadoraMCP`工具、`ReadoraCore`/`ReadoraRendering`静态framework，使用共享 `Readora` scheme运行。所有target引用现有Sources；CZlib通过系统模块映射与libz链接。`Package.swift`继续用于领域与窗口测试。下方完整双平台工程树仍是未来目标，已新增ReadoraiOS App与ReadoraCoreiOS静态framework，手机功能范围及签名说明见deploy/ios/README.md。
 
 ```text
 Readora/

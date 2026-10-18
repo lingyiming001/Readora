@@ -147,7 +147,7 @@ final class SpeechPlayer: NSObject, AVSpeechSynthesizerDelegate {
 
 /// The synthesis callback may run off the main actor. Buffers are copied before
 /// returning to AVFoundation, then transferred once and retained by the player.
-private final class SpeechPCMCollector: @unchecked Sendable {
+nonisolated private final class SpeechPCMCollector: @unchecked Sendable {
     struct Batch: @unchecked Sendable { let buffers: [AVAudioPCMBuffer] }
     private let lock = NSLock()
     private var buffers: [AVAudioPCMBuffer] = []

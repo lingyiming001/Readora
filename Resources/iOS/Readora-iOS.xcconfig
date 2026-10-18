@@ -1,0 +1,6 @@
+// Select your own development Team in Xcode Signing & Capabilities.
+PRODUCT_NAME = Readora
+PRODUCT_BUNDLE_IDENTIFIER = local.readora.ios
+MARKETING_VERSION = 0.6.0
+CURRENT_PROJECT_VERSION = 14
+IPHONEOS_DEPLOYMENT_TARGET = 17.0

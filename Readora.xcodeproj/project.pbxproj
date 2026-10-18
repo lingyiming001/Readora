@@ -1,0 +1,1356 @@
+// !$*UTF8*$!
+{
+	"classes" = {
+	};
+	"objectVersion" = "56";
+	"archiveVersion" = "1";
+	"objects" = {
+		"036416D2DF9FEDA784AD1EF3" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "2CC09DED4A7CEC681A7D9636";
+		};
+		"38393A5D98F10EAF38A51482" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) DEBUG";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"DEFINES_MODULE" = "YES";
+				"SKIP_INSTALL" = "YES";
+				"INSTALL_PATH" = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				"PRODUCT_MODULE_NAME" = "ReadoraCore";
+				"ENABLE_TESTABILITY" = "YES";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"PRODUCT_NAME" = "ReadoraCore";
+				"MACH_O_TYPE" = "staticlib";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "local.readora.readoracore";
+			};
+			"name" = "Debug";
+		};
+		"A74B38556B4FF7AD558E7B96" = {
+			"path" = "Sources/ReadoraCore/EPUBArchive.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"E877DF3807F5382410606F8A" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("DF33F72E40D914DC1582E549","A0C417119AC76635029FD41E",);
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Release";
+		};
+		"AA92523E0C3716E1D596D9F9" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "453177CF522A41C175220D04";
+		};
+		"E65CB286108F44627EFA4F23" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("82A1999EC21F960A5CC96DD9",);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"B4117811B16383032FF232C2" = {
+			"path" = "Sources/ReadoraMac/AppModel.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"D0A51571FA42B4F863AC1663" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A74B38556B4FF7AD558E7B96";
+		};
+		"533F491AA58685B5288BF09C" = {
+			"path" = "Sources/ReadoraMac/ReaderAppearance.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"1206D9F02DAA9D2171860E06" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "80B2A133064EF053CB92DF6C";
+		};
+		"F050AD439CFCBEA4C3AC8AB1" = {
+			"path" = "Readora.app";
+			"isa" = "PBXFileReference";
+			"includeInIndex" = "0";
+			"explicitFileType" = "wrapper.application";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"DFFE0EBA925ED7F2DA85ABB0" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "7C803D0DD3AC4D674CA5ACF7";
+		};
+		"C2BFE54BEB364573BBF06FF6" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"runOnlyForDeploymentPostprocessing" = 0;
+			"files" = ("6704AEF4F5F161E31EFD2B72","A50270F13F4137529EE86E21","D337C66AECA27A586662C92D","B37CBC3CE29999331CA940D9","AF444AACF893177509D8335D","579393EBB83852C310EA6C53","108727563370063506DE430A",);
+		};
+		"62C8C3B607F84D8729E39C30" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "4E74BE3F5BCB80A9187CD492";
+		};
+		"108727563370063506DE430A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "95B146B3D3E7C0BD33A4CF1E";
+		};
+		"0979213121181CB4FCAFB3D5" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "ReadoraiOS";
+			"productName" = "Readora";
+			"productType" = "com.apple.product-type.application";
+			"productReference" = "864B38074E47C31FF25E31B1";
+			"buildPhases" = ("C2BFE54BEB364573BBF06FF6","6AFA7F9D7225EEBF10375DBC","F8EC9A78943F93DA7F94B34B",);
+			"buildRules" = ();
+			"dependencies" = ("0FD327219E3755FDDDC52742",);
+			"buildConfigurationList" = "6A5338995C8B6B29F650A280";
+		};
+		"5C68AFEC24330A04785E92CE" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.framework";
+			"includeInIndex" = 0;
+			"path" = "ReadoraCore.framework";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"9932E6DC7BA4B26D37622A62" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FA7BC3E08FE3EE022A795FD5";
+		};
+		"78302F9ABCC92887365DBD8E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FF1A42F288D7EB90FBA0AD96";
+		};
+		"7E1829E539BEA4964AA553EE" = {
+			"isa" = "XCConfigurationList";
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+			"buildConfigurations" = ("9CA7BD53A48272AF0C76BF54","08CB29B428C9828AD377528C",);
+		};
+		"A7E24FAA8EAB7DBCCC138F54" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/ReadoraiOS/MobileReaderView.swift";
+			"sourceTree" = "<group>";
+		};
+		"6AFA7F9D7225EEBF10375DBC" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"runOnlyForDeploymentPostprocessing" = 0;
+			"files" = ("7BC1AA96714BF37D5F31306A",);
+		};
+		"4E74BE3F5BCB80A9187CD492" = {
+			"path" = "Sources/ReadoraCore/AIConversation.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"826522977D2ADF1FCEB032D8" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "123F2A12920369E3111618C4";
+		};
+		"AAC43CEC28D6EDA0658A0892" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D99174C7F49EEC60B3AAE04A";
+		};
+		"2EDEAFF72E10FDD3080D6995" = {
+			"path" = "Sources/ReadoraMac/AppModel+Library.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"6B117220C8F3A0FFDDDFA40B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "123F2A12920369E3111618C4";
+		};
+		"E3CBA4181AA9203B0495F039" = {
+			"path" = "Sources/ReadoraMac/PDFReader.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"6A5338995C8B6B29F650A280" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("A674A879183E8182889E5C7D","BEB3212910CE5CDB88EE2EAD",);
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Release";
+		};
+		"48910FFA3020975EB4E7D5AA" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "42CF9DD493D2AE76272A3F20";
+		};
+		"CC18632A5D5A4AC56EB0DD75" = {
+			"isa" = "PBXGroup";
+			"name" = "ReadoraRendering";
+			"children" = ("8638405DF57CB7840C07DAB3","462BB1855E530C91F9761D2A","BA5D6E8310E86B9C688DC059","614B6C7722F45374E9824998",);
+			"sourceTree" = "<group>";
+		};
+		"BDB0A4FEA13D97EE5A768661" = {
+			"path" = "ReadoraMCP";
+			"isa" = "PBXFileReference";
+			"includeInIndex" = "0";
+			"explicitFileType" = "compiled.mach-o.executable";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"7A76B368827899D9E18EA026" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D99174C7F49EEC60B3AAE04A";
+		};
+		"17881882450007942DCB5845" = {
+			"path" = "ReadoraRendering.framework";
+			"isa" = "PBXFileReference";
+			"includeInIndex" = "0";
+			"explicitFileType" = "wrapper.framework";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"908B702DB44CBE9B1818F4A5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "17881882450007942DCB5845";
+		};
+		"DF33F72E40D914DC1582E549" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "17.0";
+				"TARGETED_DEVICE_FAMILY" = "1,2";
+				"SWIFT_VERSION" = "6.0";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"CODE_SIGN_IDENTITY" = "Apple Development";
+				"PRODUCT_MODULE_NAME" = "ReadoraCore";
+				"PRODUCT_NAME" = "ReadoraCore";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "local.readora.core.ios";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"DEFINES_MODULE" = "YES";
+				"MACH_O_TYPE" = "staticlib";
+				"SKIP_INSTALL" = "YES";
+				"CODE_SIGNING_ALLOWED" = "NO";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) DEBUG";
+				"ENABLE_TESTABILITY" = "YES";
+			};
+		};
+		"A069AE3A06770A0517DE5038" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BC081DCCC49E9668AC239001";
+		};
+		"BC081DCCC49E9668AC239001" = {
+			"path" = "Sources/ReadoraCore/LocalRPCRequest.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"D30479253604633B12FF503A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "3ACA074479A0A44AF734F5C9";
+		};
+		"51CEB95812CD035B31B5C580" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "folder.assetcatalog";
+			"path" = "Resources/iOS/Assets.xcassets";
+			"sourceTree" = "<group>";
+		};
+		"B5317419E7C7D14083511091" = {
+			"path" = "Sources/ReadoraMac/ReadoraTheme.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"B8FA18644A594FE11B39A425" = {
+			"path" = "Resources/Assets.xcassets";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "folder.assetcatalog";
+			"sourceTree" = "<group>";
+		};
+		"406A15BA468193F8D26EEDD4" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "898FB67ED30B38F6BE095979";
+		};
+		"AA0596BBDB4DCC95D5D4F10C" = {
+			"isa" = "PBXGroup";
+			"sourceTree" = "<group>";
+			"children" = ("67D3D68FCA21C089665DECF3","CC18632A5D5A4AC56EB0DD75","C24C87F0CB8DEF55C8FB6B32","F658A9C07CC8BF12D092B189","5AE4014834B052F68A76E7A4","369366657F0CC118760331FE","B6D50B52887E4626ED4F5F2A","444C4E77109852D3F67ECEDF","AE7805B56D1DCAFAA071416F",);
+		};
+		"F558231D5C997048845869B5" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+				"PRODUCT_MODULE_NAME" = "ReadoraCore";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"SKIP_INSTALL" = "YES";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "local.readora.readoracore";
+				"DEFINES_MODULE" = "YES";
+				"INSTALL_PATH" = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				"PRODUCT_NAME" = "ReadoraCore";
+				"MACH_O_TYPE" = "staticlib";
+			};
+			"name" = "Release";
+		};
+		"910443702D60FC55364FA979" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "898FB67ED30B38F6BE095979";
+		};
+		"BD0DC60B99D5A421486A24F4" = {
+			"path" = "Sources/ReadoraMac/AIAppOperations.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"FFC3BC5DED47477060844921" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "94F97695EAD4A5483B13FB14";
+		};
+		"A50270F13F4137529EE86E21" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "357E2A52E981CF43AABCCDD6";
+		};
+		"B6D50B52887E4626ED4F5F2A" = {
+			"isa" = "PBXGroup";
+			"name" = "ReadoraiOS";
+			"children" = ("ED0E8DD64C6C9C446266686B","357E2A52E981CF43AABCCDD6","09EC1BA36C7BF54A1710B96C","A7E24FAA8EAB7DBCCC138F54","CC21E9A3265C088A55B10A9D","52D444E0AC1E27E586FD6439","95B146B3D3E7C0BD33A4CF1E",);
+			"sourceTree" = "<group>";
+		};
+		"6BFB27C549DC82C4DD10E413" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A06EC5512AEB6C19EDC29504";
+		};
+		"2025371BFD35E33BAD8A966B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "8638405DF57CB7840C07DAB3";
+		};
+		"0636B2E6BB201CDB7FBEA362" = {
+			"path" = "Resources/Readora.entitlements";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.plist.entitlements";
+			"sourceTree" = "<group>";
+		};
+		"E63C7E0DEF7D4B5ED439FB9E" = {
+			"path" = "Sources/ReadoraMac/ReaderNavigationPanel.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"4AB94A441230DDD1FA128EE4" = {
+			"path" = "ReadoraCore.framework";
+			"isa" = "PBXFileReference";
+			"includeInIndex" = "0";
+			"explicitFileType" = "wrapper.framework";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"FD97FAC6A7256E4A702D2BDF" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "5C68AFEC24330A04785E92CE";
+		};
+		"FED34B9EACBD94DD21AA29AC" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "87D8C958FD4C30B119033223";
+		};
+		"100C9D2C1EA7666085617431" = {
+			"path" = "Sources/ReadoraCore/AIAppAgent.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"7D8E7A7011F777A22AC7ECA6" = {
+			"path" = "Sources/ReadoraCore/MCPProtocol.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"462BB1855E530C91F9761D2A" = {
+			"path" = "Sources/ReadoraRendering/ReaderTypography.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"07CA1E69F6068DEA30A4DA6B" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"CODE_SIGN_IDENTITY" = "-";
+				"ENABLE_APP_SANDBOX" = "NO";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"CODE_SIGN_STYLE" = "Manual";
+				"SDKROOT" = "macosx";
+				"SWIFT_VERSION" = "6.0";
+				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)","$(BUILT_PRODUCTS_DIR)",);
+				"OTHER_LDFLAGS" = ("$(inherited)","-lz",);
+				"SWIFT_INCLUDE_PATHS" = ("$(inherited)","$(SRCROOT)/Sources/CZlib",);
+				"CLANG_ENABLE_OBJC_ARC" = "YES";
+			};
+			"name" = "Release";
+		};
+		"EF8F6F0D9B48D6BA583D05EB" = {
+			"isa" = "XCConfigurationList";
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+			"buildConfigurations" = ("38393A5D98F10EAF38A51482","F558231D5C997048845869B5",);
+		};
+		"87D8C958FD4C30B119033223" = {
+			"path" = "Sources/ReadoraCore/EPUBPublication.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"18732C50438DCE3EE1DD9461" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ();
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"3292626A7CDA1649F326CE73" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "874116E7B305428D4B4A7720";
+		};
+		"7B52B5BBB1A3A1270974A330" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"runOnlyForDeploymentPostprocessing" = 0;
+			"files" = ("D0A51571FA42B4F863AC1663","24CDEA2244FB43EC391824DD","A069AE3A06770A0517DE5038","E62083B6EE9A743F359132D7","9D1BACF2105F9C62D4841586","FED34B9EACBD94DD21AA29AC","9932E6DC7BA4B26D37622A62","406A15BA468193F8D26EEDD4","48910FFA3020975EB4E7D5AA","AA92523E0C3716E1D596D9F9","7A76B368827899D9E18EA026","6BFB27C549DC82C4DD10E413","6B117220C8F3A0FFDDDFA40B","F180DAC340AB589B5D1595E6","3BFA1BD01869C637F1EE47E0","200DEE1A0BD6F3FBC807176B","7A5CBB6D95CADF74B8EDBFEA","E55F3FF918F5F850EE0EFD6B",);
+		};
+		"92A5DF9DF47AB5A9B43034BD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "71C4DBC7ECE72C5CC3C3B1E0";
+		};
+		"FA7BC3E08FE3EE022A795FD5" = {
+			"path" = "Sources/ReadoraCore/AIAppCommand.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"9CA7BD53A48272AF0C76BF54" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) DEBUG";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"PRODUCT_MODULE_NAME" = "ReadoraMCP";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"SKIP_INSTALL" = "YES";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "local.readora.readoramcp";
+				"ENABLE_TESTABILITY" = "YES";
+				"PRODUCT_NAME" = "ReadoraMCP";
+			};
+			"name" = "Debug";
+		};
+		"14F1D45CFEC108403EC0F471" = {
+			"path" = "Sources/ReadoraMac/ImportSettingsView.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"CFC06470E669569A56F5549C" = {
+			"path" = "Sources/ReadoraMac/MCPService.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"8106BDEE67137A844D9FA12B" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("2025371BFD35E33BAD8A966B","A3B4190E690911ED6B94765B","80C5463738BE79F9DBDC9648","0BC96FB8D681A6054706EBCA",);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"E62083B6EE9A743F359132D7" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "100C9D2C1EA7666085617431";
+		};
+		"942038D42986F5E632570126" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "CFC06470E669569A56F5549C";
+		};
+		"ED0E8DD64C6C9C446266686B" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/ReadoraiOS/MobileAssistant.swift";
+			"sourceTree" = "<group>";
+		};
+		"B23AA44DE486D972823D1A8A" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "92CCF063FFC87754CFF181D6";
+			"targetProxy" = "2A64DAF3BA47F7DFA13E6BD2";
+		};
+		"A3B4190E690911ED6B94765B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "462BB1855E530C91F9761D2A";
+		};
+		"898FB67ED30B38F6BE095979" = {
+			"path" = "Sources/ReadoraCore/MCPLineFramer.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"7FE12F14DCB3EB37934B8FC0" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BDB0A4FEA13D97EE5A768661";
+			"settings" = {
+				"ATTRIBUTES" = ("CodeSignOnCopy",);
+			};
+		};
+		"579393EBB83852C310EA6C53" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "52D444E0AC1E27E586FD6439";
+		};
+		"71C4DBC7ECE72C5CC3C3B1E0" = {
+			"path" = "Sources/ReadoraMac/LocalRPCTransport.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"C8EA16AD77911BC4CEC9994B" = {
+			"path" = "Sources/CZlib/module.modulemap";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.module-map";
+			"sourceTree" = "<group>";
+		};
+		"42CF9DD493D2AE76272A3F20" = {
+			"path" = "Sources/ReadoraCore/ReadingPreferences.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"7BC1AA96714BF37D5F31306A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "51CEB95812CD035B31B5C580";
+		};
+		"0BC96FB8D681A6054706EBCA" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "614B6C7722F45374E9824998";
+		};
+		"368DC60D5F27BEEE872239BC" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "453177CF522A41C175220D04";
+		};
+		"3BFA1BD01869C637F1EE47E0" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "80B2A133064EF053CB92DF6C";
+		};
+		"EC4A077CCCA4689DBA89D89E" = {
+			"path" = "Sources/ReadoraMCP/main.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"2A64DAF3BA47F7DFA13E6BD2" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "244210E48437B6556980A702";
+			"remoteGlobalIDString" = "92CCF063FFC87754CFF181D6";
+			"remoteInfo" = "ReadoraCore";
+			"proxyType" = "1";
+		};
+		"B37CBC3CE29999331CA940D9" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A7E24FAA8EAB7DBCCC138F54";
+		};
+		"52D444E0AC1E27E586FD6439" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/ReadoraiOS/MobileSpeech.swift";
+			"sourceTree" = "<group>";
+		};
+		"6B984B30BD818744DBAC2746" = {
+			"productType" = "com.apple.product-type.tool";
+			"productReference" = "BDB0A4FEA13D97EE5A768661";
+			"buildConfigurationList" = "7E1829E539BEA4964AA553EE";
+			"productName" = "ReadoraMCP";
+			"isa" = "PBXNativeTarget";
+			"buildPhases" = ("0DF90921E3A3D9AA7EB6E538","E65CB286108F44627EFA4F23",);
+			"dependencies" = ("88EF262446D025C55C9B21CD",);
+			"name" = "ReadoraMCP";
+			"buildRules" = ();
+		};
+		"7A5CBB6D95CADF74B8EDBFEA" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "27B8CBAC5597471C1B5F2896";
+		};
+		"55BAC5C966E7C5DA9639965C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "100C9D2C1EA7666085617431";
+		};
+		"BA5D6E8310E86B9C688DC059" = {
+			"path" = "Sources/ReadoraRendering/SpeechAudio.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"9548D6DBBC7CE1BF895FEF6E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "4AB94A441230DDD1FA128EE4";
+		};
+		"9760AAAA62DCD8386B31577C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "42CF9DD493D2AE76272A3F20";
+		};
+		"864B38074E47C31FF25E31B1" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.application";
+			"includeInIndex" = 0;
+			"path" = "Readora.app";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"4FC0CEE92C211C54A595D8FF" = {
+			"isa" = "XCConfigurationList";
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+			"buildConfigurations" = ("981066A1241B5296026D2A67","F7C5D1439FE2857992ECCE6F",);
+		};
+		"6704AEF4F5F161E31EFD2B72" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "ED0E8DD64C6C9C446266686B";
+		};
+		"874116E7B305428D4B4A7720" = {
+			"path" = "Sources/ReadoraMac/BookImages.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"453177CF522A41C175220D04" = {
+			"path" = "Sources/ReadoraCore/SpeechTextSegment.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"AEB3F123E42290C1C31F813E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B5317419E7C7D14083511091";
+		};
+		"92CCF063FFC87754CFF181D6" = {
+			"productType" = "com.apple.product-type.framework";
+			"productReference" = "4AB94A441230DDD1FA128EE4";
+			"buildConfigurationList" = "EF8F6F0D9B48D6BA583D05EB";
+			"productName" = "ReadoraCore";
+			"isa" = "PBXNativeTarget";
+			"buildPhases" = ("4C441BF97CCB8EE978E0F973","18732C50438DCE3EE1DD9461",);
+			"dependencies" = ();
+			"name" = "ReadoraCore";
+			"buildRules" = ();
+		};
+		"AD87645548E51C2C42BEB1BD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A06EC5512AEB6C19EDC29504";
+		};
+		"D906ACBA4570D71003FBAA00" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "533F491AA58685B5288BF09C";
+		};
+		"D337C66AECA27A586662C92D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "09EC1BA36C7BF54A1710B96C";
+		};
+		"614B6C7722F45374E9824998" = {
+			"path" = "Sources/ReadoraRendering/TextPaginator.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"C24C87F0CB8DEF55C8FB6B32" = {
+			"isa" = "PBXGroup";
+			"name" = "ReadoraMCP";
+			"children" = ("EC4A077CCCA4689DBA89D89E",);
+			"sourceTree" = "<group>";
+		};
+		"539D0089B06CE809E9DB6649" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "6B984B30BD818744DBAC2746";
+			"targetProxy" = "403C3B0DA84B97D6F5F493CC";
+		};
+		"A78FF1F41F064B9F922521B2" = {
+			"path" = "Sources/ReadoraMac/ReadoraApp.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"D99174C7F49EEC60B3AAE04A" = {
+			"path" = "Sources/ReadoraCore/EPUBXML.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"94EE85EC33825FB3D7641F2E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "EC4A077CCCA4689DBA89D89E";
+		};
+		"51933C46A917A1EAE57ECC75" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "BE06AB6A54AC71677D047050";
+			"targetProxy" = "C490C2507D719604E753282A";
+		};
+		"F180DAC340AB589B5D1595E6" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "3ACA074479A0A44AF734F5C9";
+		};
+		"5AE4014834B052F68A76E7A4" = {
+			"isa" = "PBXGroup";
+			"name" = "CZlib";
+			"children" = ("C8EA16AD77911BC4CEC9994B","65CE1A72A3817BA4F8BA604F",);
+			"sourceTree" = "<group>";
+		};
+		"0FD327219E3755FDDDC52742" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "A6FBEC2B1BDAA60B96D52894";
+			"targetProxy" = "DE12F85E6C5AED506B5D9924";
+		};
+		"A674A879183E8182889E5C7D" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "17.0";
+				"TARGETED_DEVICE_FAMILY" = "1,2";
+				"SWIFT_VERSION" = "6.0";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"CODE_SIGN_IDENTITY" = "Apple Development";
+				"PRODUCT_MODULE_NAME" = "ReadoraiOS";
+				"INFOPLIST_FILE" = "Resources/iOS/Info.plist";
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "MainActor";
+				"OTHER_SWIFT_FLAGS" = ("$(inherited)","-enable-upcoming-feature","NonisolatedNonsendingByDefault",);
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)","@executable_path/Frameworks",);
+				"SKIP_INSTALL" = "NO";
+				"SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD" = "NO";
+				"CODE_SIGN_ENTITLEMENTS" = "";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) DEBUG";
+				"ENABLE_TESTABILITY" = "YES";
+			};
+			"baseConfigurationReference" = "87144E0ED417DA4DBD723B6A";
+		};
+		"2CC1ABD9F895216418A72BF8" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) DEBUG";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"DEFINES_MODULE" = "YES";
+				"SKIP_INSTALL" = "YES";
+				"INSTALL_PATH" = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				"PRODUCT_MODULE_NAME" = "ReadoraRendering";
+				"ENABLE_TESTABILITY" = "YES";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"PRODUCT_NAME" = "ReadoraRendering";
+				"MACH_O_TYPE" = "staticlib";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "local.readora.readorarendering";
+			};
+			"name" = "Debug";
+		};
+		"200DEE1A0BD6F3FBC807176B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E802D0BD43C12EC03CD421C8";
+		};
+		"4C441BF97CCB8EE978E0F973" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("55BAC5C966E7C5DA9639965C","FDB9BEED4B75080703590CF2","D30479253604633B12FF503A","B382BEBFA2CB88D78B8FBE6F","62C8C3B607F84D8729E39C30","7027868C1233D5DCBBB4A9C4","826522977D2ADF1FCEB032D8","F8288BD4C91A74784E967E3E","742146F311A77183DFF44B7B","AAC43CEC28D6EDA0658A0892","1206D9F02DAA9D2171860E06","AD87645548E51C2C42BEB1BD","3C84ECAC58A3B73AF2B7197E","3F2965B7F626F8782D87F3FC","910443702D60FC55364FA979","C71FC60D85F85EB9A9780E4E","9760AAAA62DCD8386B31577C","368DC60D5F27BEEE872239BC",);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"C71FC60D85F85EB9A9780E4E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "7D8E7A7011F777A22AC7ECA6";
+		};
+		"A06EC5512AEB6C19EDC29504" = {
+			"path" = "Sources/ReadoraCore/Library.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"FD9D3506EA137B5A96593D16" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "7481EBCCE6063685C2833DBC";
+		};
+		"E26B3D87D05805FE99ABB45C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E3CBA4181AA9203B0495F039";
+		};
+		"403C3B0DA84B97D6F5F493CC" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "244210E48437B6556980A702";
+			"remoteGlobalIDString" = "6B984B30BD818744DBAC2746";
+			"remoteInfo" = "ReadoraMCP";
+			"proxyType" = "1";
+		};
+		"691B21A6BB9EEC46CA55164E" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = 2147483647;
+			"runOnlyForDeploymentPostprocessing" = 0;
+			"files" = ();
+		};
+		"444C4E77109852D3F67ECEDF" = {
+			"isa" = "PBXGroup";
+			"name" = "iOS Resources";
+			"children" = ("505FCCC2069D43905BC5830C","87144E0ED417DA4DBD723B6A","51CEB95812CD035B31B5C580",);
+			"sourceTree" = "<group>";
+		};
+		"E39B756FBF7E51573D075FBA" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+				"PRODUCT_MODULE_NAME" = "ReadoraRendering";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"SKIP_INSTALL" = "YES";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "local.readora.readorarendering";
+				"DEFINES_MODULE" = "YES";
+				"INSTALL_PATH" = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				"PRODUCT_NAME" = "ReadoraRendering";
+				"MACH_O_TYPE" = "staticlib";
+			};
+			"name" = "Release";
+		};
+		"A9A5B04B777EA8B84CE7809D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B4117811B16383032FF232C2";
+		};
+		"123F2A12920369E3111618C4" = {
+			"path" = "Sources/ReadoraCore/AIModelRegistry.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"3ACA074479A0A44AF734F5C9" = {
+			"path" = "Sources/ReadoraCore/AIClient.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"6F5E74EC4D47FE49E1FE30BA" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "244210E48437B6556980A702";
+			"remoteGlobalIDString" = "92CCF063FFC87754CFF181D6";
+			"remoteInfo" = "ReadoraCore";
+			"proxyType" = "1";
+		};
+		"F8FD12FD182C102BE4EA092D" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("8323861C5FD257A8D95D77FA","B3EB8F585F0041378A6B1757","78302F9ABCC92887365DBD8E","53C74E1973634BE8FEF75F76","A9A5B04B777EA8B84CE7809D","3292626A7CDA1649F326CE73","3B4867D306EB36CE594D573D","6D0E4E10BBC929B0B246530E","92A5DF9DF47AB5A9B43034BD","942038D42986F5E632570126","E26B3D87D05805FE99ABB45C","C7B7CACC04F543C3EE3191BD","D906ACBA4570D71003FBAA00","91BFF223BE13C84B2AB3138E","DFFE0EBA925ED7F2DA85ABB0","79AA007B6443C9430887FC45","AEB3F123E42290C1C31F813E","FFC3BC5DED47477060844921","FD9D3506EA137B5A96593D16","036416D2DF9FEDA784AD1EF3",);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"244210E48437B6556980A702" = {
+			"buildConfigurationList" = "F905B102B4F13BD6617D8EB3";
+			"targets" = ("92CCF063FFC87754CFF181D6","BE06AB6A54AC71677D047050","6B984B30BD818744DBAC2746","C9A131FBE8437FF66E6AF902","A6FBEC2B1BDAA60B96D52894","0979213121181CB4FCAFB3D5",);
+			"developmentRegion" = "en";
+			"knownRegions" = ("en","Base",);
+			"isa" = "PBXProject";
+			"compatibilityVersion" = "Xcode 14.0";
+			"productRefGroup" = "AE7805B56D1DCAFAA071416F";
+			"projectDirPath" = "";
+			"attributes" = {
+				"LastUpgradeCheck" = "2710";
+				"BuildIndependentTargetsInParallel" = "YES";
+				"TargetAttributes" = {
+					"C9A131FBE8437FF66E6AF902" = {
+						"SystemCapabilities" = {
+							"com.apple.HardenedRuntime" = {
+								"enabled" = "0";
+							};
+						};
+						"CreatedOnToolsVersion" = "27.1";
+					};
+					"0979213121181CB4FCAFB3D5" = {
+						"CreatedOnToolsVersion" = "27.1";
+						"ProvisioningStyle" = "Automatic";
+					};
+				};
+			};
+			"hasScannedForEncodings" = "0";
+			"projectRoot" = "";
+			"mainGroup" = "AA0596BBDB4DCC95D5D4F10C";
+		};
+		"97626485CCA7CA1EC4F58F26" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "244210E48437B6556980A702";
+			"remoteGlobalIDString" = "92CCF063FFC87754CFF181D6";
+			"remoteInfo" = "ReadoraCore";
+			"proxyType" = "1";
+		};
+		"53C74E1973634BE8FEF75F76" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "2EDEAFF72E10FDD3080D6995";
+		};
+		"41D36DC8CF89E035CAF25EE3" = {
+			"path" = "Sources/ReadoraMac/PageSwipeSurface.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"80B2A133064EF053CB92DF6C" = {
+			"path" = "Sources/ReadoraCore/ImportSettings.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"DE12F85E6C5AED506B5D9924" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "244210E48437B6556980A702";
+			"proxyType" = 1;
+			"remoteGlobalIDString" = "A6FBEC2B1BDAA60B96D52894";
+			"remoteInfo" = "ReadoraCoreiOS";
+		};
+		"357E2A52E981CF43AABCCDD6" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/ReadoraiOS/MobileImages.swift";
+			"sourceTree" = "<group>";
+		};
+		"2B23A31EEC75B029432F2445" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) DEBUG";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"CODE_SIGN_IDENTITY" = "-";
+				"ENABLE_APP_SANDBOX" = "NO";
+				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
+				"ENABLE_TESTABILITY" = "YES";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"CODE_SIGN_STYLE" = "Manual";
+				"SDKROOT" = "macosx";
+				"SWIFT_VERSION" = "6.0";
+				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)","$(BUILT_PRODUCTS_DIR)",);
+				"OTHER_LDFLAGS" = ("$(inherited)","-lz",);
+				"SWIFT_INCLUDE_PATHS" = ("$(inherited)","$(SRCROOT)/Sources/CZlib",);
+				"CLANG_ENABLE_OBJC_ARC" = "YES";
+			};
+			"name" = "Debug";
+		};
+		"B382BEBFA2CB88D78B8FBE6F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "0333FB7F1CA6D59613DBE06E";
+		};
+		"88EF262446D025C55C9B21CD" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "92CCF063FFC87754CFF181D6";
+			"targetProxy" = "97626485CCA7CA1EC4F58F26";
+		};
+		"AD82A4FC05F67AA6929BBA59" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("1042C25C6A2D1CC974A6A5B7","908B702DB44CBE9B1818F4A5",);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"3B4867D306EB36CE594D573D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "14F1D45CFEC108403EC0F471";
+		};
+		"F1A56007F65FE881FA2E31C9" = {
+			"buildActionMask" = "2147483647";
+			"dstSubfolderSpec" = "6";
+			"isa" = "PBXCopyFilesBuildPhase";
+			"runOnlyForDeploymentPostprocessing" = "0";
+			"dstPath" = "";
+			"files" = ("7FE12F14DCB3EB37934B8FC0",);
+			"name" = "Embed MCP Bridge";
+		};
+		"C7B7CACC04F543C3EE3191BD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "41D36DC8CF89E035CAF25EE3";
+		};
+		"7C803D0DD3AC4D674CA5ACF7" = {
+			"path" = "Sources/ReadoraMac/ReaderView.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"FDB9BEED4B75080703590CF2" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FA7BC3E08FE3EE022A795FD5";
+		};
+		"E802D0BD43C12EC03CD421C8" = {
+			"path" = "Sources/ReadoraCore/AICredentialStore.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"27B8CBAC5597471C1B5F2896" = {
+			"path" = "Sources/ReadoraCore/LibraryFeatures.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"8ED5F0F4E2176AFFEC1B6CE6" = {
+			"path" = "Sources/ReadoraMac/AIReadingAssistant.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"BE06AB6A54AC71677D047050" = {
+			"productType" = "com.apple.product-type.framework";
+			"productReference" = "17881882450007942DCB5845";
+			"buildConfigurationList" = "2F93D576973B54AF9E62FF0B";
+			"productName" = "ReadoraRendering";
+			"isa" = "PBXNativeTarget";
+			"buildPhases" = ("8106BDEE67137A844D9FA12B","E117FE62BF90E8AFBEEDF303",);
+			"dependencies" = ("B23AA44DE486D972823D1A8A",);
+			"name" = "ReadoraRendering";
+			"buildRules" = ();
+		};
+		"E117FE62BF90E8AFBEEDF303" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("9548D6DBBC7CE1BF895FEF6E",);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"A6FBEC2B1BDAA60B96D52894" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "ReadoraCoreiOS";
+			"productName" = "ReadoraCore";
+			"productType" = "com.apple.product-type.framework";
+			"productReference" = "5C68AFEC24330A04785E92CE";
+			"buildPhases" = ("7B52B5BBB1A3A1270974A330","691B21A6BB9EEC46CA55164E",);
+			"buildRules" = ();
+			"dependencies" = ();
+			"buildConfigurationList" = "E877DF3807F5382410606F8A";
+		};
+		"79AA007B6443C9430887FC45" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A78FF1F41F064B9F922521B2";
+		};
+		"BEB3212910CE5CDB88EE2EAD" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "17.0";
+				"TARGETED_DEVICE_FAMILY" = "1,2";
+				"SWIFT_VERSION" = "6.0";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"CODE_SIGN_IDENTITY" = "Apple Development";
+				"PRODUCT_MODULE_NAME" = "ReadoraiOS";
+				"INFOPLIST_FILE" = "Resources/iOS/Info.plist";
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "MainActor";
+				"OTHER_SWIFT_FLAGS" = ("$(inherited)","-enable-upcoming-feature","NonisolatedNonsendingByDefault",);
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)","@executable_path/Frameworks",);
+				"SKIP_INSTALL" = "NO";
+				"SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD" = "NO";
+				"CODE_SIGN_ENTITLEMENTS" = "";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+			};
+			"baseConfigurationReference" = "87144E0ED417DA4DBD723B6A";
+		};
+		"2CC09DED4A7CEC681A7D9636" = {
+			"path" = "Sources/ReadoraMac/VoiceConversation.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"F658A9C07CC8BF12D092B189" = {
+			"isa" = "PBXGroup";
+			"name" = "ReadoraMac";
+			"children" = ("BD0DC60B99D5A421486A24F4","8ED5F0F4E2176AFFEC1B6CE6","FF1A42F288D7EB90FBA0AD96","2EDEAFF72E10FDD3080D6995","B4117811B16383032FF232C2","874116E7B305428D4B4A7720","14F1D45CFEC108403EC0F471","60907DBBFF470B89294BD76E","71C4DBC7ECE72C5CC3C3B1E0","CFC06470E669569A56F5549C","E3CBA4181AA9203B0495F039","41D36DC8CF89E035CAF25EE3","533F491AA58685B5288BF09C","E63C7E0DEF7D4B5ED439FB9E","7C803D0DD3AC4D674CA5ACF7","A78FF1F41F064B9F922521B2","B5317419E7C7D14083511091","94F97695EAD4A5483B13FB14","7481EBCCE6063685C2833DBC","2CC09DED4A7CEC681A7D9636",);
+			"sourceTree" = "<group>";
+		};
+		"80C5463738BE79F9DBDC9648" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BA5D6E8310E86B9C688DC059";
+		};
+		"981066A1241B5296026D2A67" = {
+			"baseConfigurationReference" = "C46646BEE3EB974E0E8A4C60";
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)","@executable_path/../Frameworks",);
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) DEBUG";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"INFOPLIST_FILE" = "Resources/Info.plist";
+				"SKIP_INSTALL" = "NO";
+				"PRODUCT_MODULE_NAME" = "ReadoraMac";
+				"ENABLE_TESTABILITY" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "MainActor";
+				"OTHER_SWIFT_FLAGS" = ("$(inherited)","-enable-upcoming-feature","NonisolatedNonsendingByDefault",);
+				"CODE_SIGN_ENTITLEMENTS" = "Resources/Readora.entitlements";
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
+				"COMBINE_HIDPI_IMAGES" = "YES";
+				"COPY_PHASE_STRIP" = "NO";
+			};
+			"name" = "Debug";
+		};
+		"FF1A42F288D7EB90FBA0AD96" = {
+			"path" = "Sources/ReadoraMac/AISettingsView.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"0333FB7F1CA6D59613DBE06E" = {
+			"path" = "Sources/ReadoraCore/AIConfiguration.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"505FCCC2069D43905BC5830C" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.plist.xml";
+			"path" = "Resources/iOS/Info.plist";
+			"sourceTree" = "<group>";
+		};
+		"5318E19337B000B06F194979" = {
+			"path" = "Resources/Info.plist";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.plist.xml";
+			"sourceTree" = "<group>";
+		};
+		"F8EC9A78943F93DA7F94B34B" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = 2147483647;
+			"runOnlyForDeploymentPostprocessing" = 0;
+			"files" = ("FD97FAC6A7256E4A702D2BDF",);
+		};
+		"C490C2507D719604E753282A" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "244210E48437B6556980A702";
+			"remoteGlobalIDString" = "BE06AB6A54AC71677D047050";
+			"remoteInfo" = "ReadoraRendering";
+			"proxyType" = "1";
+		};
+		"F7C5D1439FE2857992ECCE6F" = {
+			"baseConfigurationReference" = "C46646BEE3EB974E0E8A4C60";
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)","@executable_path/../Frameworks",);
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+				"INFOPLIST_FILE" = "Resources/Info.plist";
+				"SKIP_INSTALL" = "NO";
+				"PRODUCT_MODULE_NAME" = "ReadoraMac";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "MainActor";
+				"OTHER_SWIFT_FLAGS" = ("$(inherited)","-enable-upcoming-feature","NonisolatedNonsendingByDefault",);
+				"CODE_SIGN_ENTITLEMENTS" = "Resources/Readora.entitlements";
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
+				"COMBINE_HIDPI_IMAGES" = "YES";
+				"COPY_PHASE_STRIP" = "NO";
+			};
+			"name" = "Release";
+		};
+		"60907DBBFF470B89294BD76E" = {
+			"path" = "Sources/ReadoraMac/LibraryView.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"91BFF223BE13C84B2AB3138E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E63C7E0DEF7D4B5ED439FB9E";
+		};
+		"CC21E9A3265C088A55B10A9D" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/ReadoraiOS/MobileSettingsView.swift";
+			"sourceTree" = "<group>";
+		};
+		"369366657F0CC118760331FE" = {
+			"isa" = "PBXGroup";
+			"name" = "Resources";
+			"children" = ("5318E19337B000B06F194979","0636B2E6BB201CDB7FBEA362","B8FA18644A594FE11B39A425","C46646BEE3EB974E0E8A4C60",);
+			"sourceTree" = "<group>";
+		};
+		"2F93D576973B54AF9E62FF0B" = {
+			"isa" = "XCConfigurationList";
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+			"buildConfigurations" = ("2CC1ABD9F895216418A72BF8","E39B756FBF7E51573D075FBA",);
+		};
+		"F8288BD4C91A74784E967E3E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A74B38556B4FF7AD558E7B96";
+		};
+		"3C84ECAC58A3B73AF2B7197E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "27B8CBAC5597471C1B5F2896";
+		};
+		"65CE1A72A3817BA4F8BA604F" = {
+			"path" = "Sources/CZlib/shim.h";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.c.h";
+			"sourceTree" = "<group>";
+		};
+		"A0C417119AC76635029FD41E" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "17.0";
+				"TARGETED_DEVICE_FAMILY" = "1,2";
+				"SWIFT_VERSION" = "6.0";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"CODE_SIGN_IDENTITY" = "Apple Development";
+				"PRODUCT_MODULE_NAME" = "ReadoraCore";
+				"PRODUCT_NAME" = "ReadoraCore";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "local.readora.core.ios";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"DEFINES_MODULE" = "YES";
+				"MACH_O_TYPE" = "staticlib";
+				"SKIP_INSTALL" = "YES";
+				"CODE_SIGNING_ALLOWED" = "NO";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+			};
+		};
+		"24CDEA2244FB43EC391824DD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "4E74BE3F5BCB80A9187CD492";
+		};
+		"67D3D68FCA21C089665DECF3" = {
+			"isa" = "PBXGroup";
+			"name" = "ReadoraCore";
+			"children" = ("100C9D2C1EA7666085617431","FA7BC3E08FE3EE022A795FD5","3ACA074479A0A44AF734F5C9","0333FB7F1CA6D59613DBE06E","4E74BE3F5BCB80A9187CD492","E802D0BD43C12EC03CD421C8","123F2A12920369E3111618C4","A74B38556B4FF7AD558E7B96","87D8C958FD4C30B119033223","D99174C7F49EEC60B3AAE04A","80B2A133064EF053CB92DF6C","A06EC5512AEB6C19EDC29504","27B8CBAC5597471C1B5F2896","BC081DCCC49E9668AC239001","898FB67ED30B38F6BE095979","7D8E7A7011F777A22AC7ECA6","42CF9DD493D2AE76272A3F20","453177CF522A41C175220D04",);
+			"sourceTree" = "<group>";
+		};
+		"1042C25C6A2D1CC974A6A5B7" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "4AB94A441230DDD1FA128EE4";
+		};
+		"34BCD9F20D695664EF039FD3" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "92CCF063FFC87754CFF181D6";
+			"targetProxy" = "6F5E74EC4D47FE49E1FE30BA";
+		};
+		"F905B102B4F13BD6617D8EB3" = {
+			"isa" = "XCConfigurationList";
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+			"buildConfigurations" = ("2B23A31EEC75B029432F2445","07CA1E69F6068DEA30A4DA6B",);
+		};
+		"8638405DF57CB7840C07DAB3" = {
+			"path" = "Sources/ReadoraRendering/PageSwipeTracker.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"6D0E4E10BBC929B0B246530E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "60907DBBFF470B89294BD76E";
+		};
+		"C9A131FBE8437FF66E6AF902" = {
+			"productType" = "com.apple.product-type.application";
+			"productReference" = "F050AD439CFCBEA4C3AC8AB1";
+			"buildConfigurationList" = "4FC0CEE92C211C54A595D8FF";
+			"productName" = "Readora";
+			"isa" = "PBXNativeTarget";
+			"buildPhases" = ("F8FD12FD182C102BE4EA092D","AD82A4FC05F67AA6929BBA59","DF7DA2167AC83EB9D03DC27B","F1A56007F65FE881FA2E31C9",);
+			"dependencies" = ("34BCD9F20D695664EF039FD3","51933C46A917A1EAE57ECC75","539D0089B06CE809E9DB6649",);
+			"name" = "ReadoraMac";
+			"buildRules" = ();
+		};
+		"AE7805B56D1DCAFAA071416F" = {
+			"isa" = "PBXGroup";
+			"name" = "Products";
+			"children" = ("4AB94A441230DDD1FA128EE4","17881882450007942DCB5845","BDB0A4FEA13D97EE5A768661","F050AD439CFCBEA4C3AC8AB1","5C68AFEC24330A04785E92CE","864B38074E47C31FF25E31B1",);
+			"sourceTree" = "<group>";
+		};
+		"0DF90921E3A3D9AA7EB6E538" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("94EE85EC33825FB3D7641F2E",);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"C46646BEE3EB974E0E8A4C60" = {
+			"path" = "Resources/Readora.xcconfig";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.xcconfig";
+			"sourceTree" = "<group>";
+		};
+		"95B146B3D3E7C0BD33A4CF1E" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/ReadoraiOS/ReadoraMobileApp.swift";
+			"sourceTree" = "<group>";
+		};
+		"742146F311A77183DFF44B7B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "87D8C958FD4C30B119033223";
+		};
+		"7481EBCCE6063685C2833DBC" = {
+			"path" = "Sources/ReadoraMac/SpeechPlayer.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"9D1BACF2105F9C62D4841586" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "7D8E7A7011F777A22AC7ECA6";
+		};
+		"BF1BE648F172071F676A979C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B8FA18644A594FE11B39A425";
+		};
+		"3F2965B7F626F8782D87F3FC" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BC081DCCC49E9668AC239001";
+		};
+		"87144E0ED417DA4DBD723B6A" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.xcconfig";
+			"path" = "Resources/iOS/Readora-iOS.xcconfig";
+			"sourceTree" = "<group>";
+		};
+		"8323861C5FD257A8D95D77FA" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BD0DC60B99D5A421486A24F4";
+		};
+		"94F97695EAD4A5483B13FB14" = {
+			"path" = "Sources/ReadoraMac/SelectableParagraph.swift";
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"sourceTree" = "<group>";
+		};
+		"B3EB8F585F0041378A6B1757" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "8ED5F0F4E2176AFFEC1B6CE6";
+		};
+		"09EC1BA36C7BF54A1710B96C" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Sources/ReadoraiOS/MobileLibrary.swift";
+			"sourceTree" = "<group>";
+		};
+		"E55F3FF918F5F850EE0EFD6B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "0333FB7F1CA6D59613DBE06E";
+		};
+		"82A1999EC21F960A5CC96DD9" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "4AB94A441230DDD1FA128EE4";
+		};
+		"08CB29B428C9828AD377528C" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"SKIP_INSTALL" = "YES";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "local.readora.readoramcp";
+				"PRODUCT_MODULE_NAME" = "ReadoraMCP";
+				"PRODUCT_NAME" = "ReadoraMCP";
+			};
+			"name" = "Release";
+		};
+		"AF444AACF893177509D8335D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "CC21E9A3265C088A55B10A9D";
+		};
+		"DF7DA2167AC83EB9D03DC27B" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("BF1BE648F172071F676A979C",);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"7027868C1233D5DCBBB4A9C4" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E802D0BD43C12EC03CD421C8";
+		};
+	};
+	"rootObject" = "244210E48437B6556980A702";
+}

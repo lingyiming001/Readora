@@ -16,6 +16,18 @@
 | 文件 | FileManager、UTType、security-scoped URL | 自有副本作为主路径；持久书签仅可选链接模式，首发不支持 |
 | 测试 | XCTest/XCUITest，纯算法可用 Swift Testing | XCTest 支持 UI/性能；Swift Testing 跟工具链而非最低 OS，建工程时验证 target |
 
+## 当前代码的现代化基线（2026-10-18）
+
+以下描述实际 macOS 原型，前面的双平台表格仍是产品目标：
+
+- 构建机实测 Xcode 27.1（27A9275）、Apple Swift 6.4；Package Tools 最低升级为6.4，语言模式显式指定Swift 6。工具版本与语言模式不是同一个版本号。
+- UI 使用 SwiftUI + Observation（`@Observable` / `@Bindable`），`ReadoraMac` 启用 `defaultIsolation(MainActor.self)` 和 `NonisolatedNonsendingByDefault`。界面默认隔离到主actor，非隔离异步方法沿调用者隔离执行。
+- Core、Rendering、MCP维持非UI默认隔离；解析、分页、图片处理已有后台任务。传输队列和音频采集器显式声明 `nonisolated`，不把网络回调或PCM复制搬到UI actor。既有 `@unchecked Sendable` 仍依赖队列/锁约束，并非已全部消除。
+- 最低运行系统保留macOS 14；SwiftUI + AppKit/PDFKit/AVFoundation的混用仍是原生方案，不以移除AppKit为升级目标。新版SDK外观与业务布局是独立事项。
+- 书库仍是可恢复的原子JSON，EPUB仍是原生段落渲染；本轮没有改为SwiftData、Core Data、WebKit或同步系统，也没有迁移用户数据。无第三方Swift包需要追版本。
+
+参考：[默认Actor隔离提案 SE-0466](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0466-control-default-actor-isolation.md)、[非隔离异步方法新语义](https://docs.swift.org/latest/documentation/diagnostics/nonisolated-nonsending-by-default/)、[Apple SwiftUI与AppKit整合](https://developer.apple.com/videos/play/wwdc2026/272/)。采用本机构建工具不代表已核实它是全球最新稳定发布。
+
 ## EPUB 方案比较
 
 | 方案 | 官方范围与维护证据 | 许可证 | 定位/分页/朗读 | 结论 |
@@ -40,3 +52,9 @@
 - [WKURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkurlschemehandler)：资源加载机制入口；自定义 scheme 的字体/CSP/取消行为需探针。
 
 TTS 后台、Mac 媒体中心能力、文本高亮时序、跨 WKWebView 版本定位和 CloudKit 冲突均标为「待真机验证」。不使用尚未核实的新系统 API 来支撑首发承诺。
+
+## iPhone 首版实际接入（2026-10-18）
+
+新增 `ReadoraiOS` 原生App与 `ReadoraCoreiOS` 静态framework，iOS17起。CoreiOS引用同一批ReadoraCore源文件；手机界面独立使用SwiftUI/UIKit/PDFKit，不链接含AppKit的ReadoraRendering。支持本地书库、连续滚动与PDF阅读、进度/书签、外观、AVSpeechSynthesizer朗读与HTTPS模型问答。iOS后台音频已配置，实际锁屏、路由中断和性能待真机验证。Mac MCP/自动操作、分页/高亮、跨设备同步尚未移植。
+
+真机及模拟器编译通过，Release未签名归档已生成；未检测到手机、签名证书及可运行的模拟器Runtime，不能宣称已经安装或交互回归。详见[手机安装说明](../deploy/ios/README.md)。

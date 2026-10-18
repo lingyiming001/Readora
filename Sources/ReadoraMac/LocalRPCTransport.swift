@@ -3,7 +3,7 @@ import Network
 import ReadoraCore
 
 /// All mutable transport state is confined to queue; request execution never blocks it.
-final class LocalRPCTransport: @unchecked Sendable {
+nonisolated final class LocalRPCTransport: @unchecked Sendable {
     private let queue = DispatchQueue(label: "local.readora.mcp")
     private let listener: NWListener
     private let token: String

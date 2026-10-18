@@ -2,7 +2,7 @@
 
 Readora 是面向 Mac、iPhone 的原生个人电子书阅读器产品设计，强调安静阅读、可靠的本地书库，以及阅读和系统朗读之间连续的上下文。未来扩展 iPadOS，保持共享领域模型与平台独立交互。
 
-**当前状态：2026-10-16，macOS 原型 0.6.0，提供 Swift Package 原生应用、多模型 AI 助手与应用操作；尚未创建双平台 Xcode 工程，也未完成完整 MVP 或真机性能验证。** 所有指标是验收目标，不是实测结果。现有 `Readora.png` 保留原样，未被定义为已批准的品牌或 UI 规范。
+**当前状态：2026-10-18，macOS 原型 0.6.0，提供 Swift Package 原生应用、多模型 AI 助手与应用操作；已提供原生 macOS Xcode App 工程；已新增 iOS 17+ 手机阅读首版；真机签名安装、完整 MVP 和真机性能验证尚未完成。** 所有指标是验收目标，不是实测结果。现有 `Readora.png` 保留原样，未被定义为已批准的品牌或 UI 规范。
 
 ## 目标架构边界（完整产品设计）
 
@@ -28,10 +28,10 @@ Readora 是面向 Mac、iPhone 的原生个人电子书阅读器产品设计，�
 ## 开发启动指南
 
 1. 先执行路线图阶段 1 的三个技术探针：跨平台 EPUB 定位、iPhone 后台朗读、Core Data 同步冲突。每个探针交付可复现样书、测试步骤和 go/no-go 结论。
-2. 创建 `Readora.xcodeproj`，两个 application target：`ReadoraMac` / `ReadoraiOS`；按工程结构创建本地 Swift Package。示例目录是未来工程蓝图，并非已有文件。
+2. 现有 `Readora.xcodeproj` 已包含 `ReadoraMac` application target；已新增 `ReadoraiOS` application target（手机首版）。按工程结构逐步扩展共享模块。
 3. 使用可构建 iOS 17 / macOS 14 deployment target 的稳定 Xcode，记录确切版本到 CI；避免使用 beta SDK 才有的 API。Swift 6 并发模式逐模块启用，领域层先达到严格检查。
 4. 无付费开发者账号也应先实现本地流程；CloudKit、设备签名与 TestFlight 需要配置 Team、Bundle ID 和正式容器。不得将示例标识直接用作生产配置。
-5. 建好工程后运行 `xcodebuild -list -project Readora.xcodeproj` 确认 scheme；按测试文档在 CI 配置模拟器与 macOS 测试。目前运行构建命令会因工程不存在而失败。
+5. 运行 `xcodebuild -list -project Readora.xcodeproj` 确认 `Readora` scheme；现有领域与窗口回归测试通过 `swift test` 运行，Xcode App scheme 暂未接入测试 target。iOS 模拟器测试待工程扩展后配置。
 6. 任务按「功能 ID、依赖、输入输出、失败状态、测试夹具、验收证据」编写；改变位置模型、同步协议或版本范围时先更新对应文档。
 
 ## 文档约定
@@ -42,15 +42,40 @@ MVP = 本地封闭测试；V1 = 首次公开商业发布；V1.1 = 文件同步�
 
 后续每个功能完成后，开发者须自主执行适用的自动化测试与端到端自测，修复发现的常见缺陷，检查取消/重复操作/异常文件/重开恢复，并按性能预算测量启动、滚动、内存和朗读延迟。只有修复后回归通过才报告完成；无设备或环境无法覆盖的检查应明确列出，不能用设计目标代替测试结果。
 
-## 启动 macOS 初始版
+## 在 iPhone 上使用
 
-安装 Xcode 后在项目目录运行：
+打开 `Readora.xcodeproj`，选择 **ReadoraiOS → 你的 iPhone**；在该target的Signing & Capabilities选择自己的Team，按⌘R。手机首版支持EPUB/TXT/PDF导入阅读、进度/书签、主题/字号、系统朗读和AI阅读问答。Mac MCP、完整自动操作、分页/高亮与同步尚未移植。
+
+已生成未签名真机Release归档，但没有签名的App不能直接安装。连接手机、信任电脑、登录Apple ID并设置Team后，由Xcode构建安装。详细步骤、产物与限制见[手机安装说明](deploy/ios/README.md)。
+
+## 在 Xcode 中运行 macOS App
+
+1. 打开根目录 `Readora.xcodeproj`（运行 App 时使用这个入口）。
+2. 顶部选择 **Readora → My Mac**，按 **⌘R** 构建并运行；⌘B 只构建。
+3. `ReadoraMac` 为正式 application target；`ReadoraMCP` 是自动构建并复制到 `Contents/MacOS/` 的后台桥接程序，不需要单独运行。
+4. 图标在 `Resources/Assets.xcassets/AppIcon.appiconset`；用途说明位于 `Resources/Info.plist`，标识与版本统一在 `Resources/Readora.xcconfig` 配置，签名权限位于 `Resources/Readora.entitlements`。
+
+默认使用本地临时签名（Sign to Run Locally），不写入个人 Team。正式发布时在 Signing & Capabilities 中设置自己的 Team、签名方式及生产 Bundle ID；当前仍为 `local.readora.mac`。运行最低 macOS 14，开发环境基线 Swift 6.4 / Xcode 27.1。此 App target 当前未开启 App Sandbox。
+
+Xcode 构建产物在 DerivedData 的 `Build/Products/Debug/Readora.app`；可在 Products 中右键 **Show in Finder**。旧版脚本的 `deploy/Readora.app` 与 Xcode 产物是两个构建位置，修改后应运行刚构建的那个版本。
+
+命令行构建：
+
+```sh
+xcodebuild -project Readora.xcodeproj -scheme Readora -configuration Debug -destination 'platform=macOS' build
+```
+
+`Package.swift` 保留为模块开发与 `swift test` 的入口。Xcode工程直接引用同一批Sources，无需额外安装项目生成器。新增Swift文件时在Xcode中选择正确的Target Membership；核心库与排版库作为静态framework链接，不需要随App嵌入动态framework。
+
+## 使用脚本打包启动 macOS App
+
+使用 Swift 6.4 或更新工具链（本机验证 Xcode 27.1 / Swift 6.4）后在项目目录运行：
 
 ```sh
 ./scripts/run-macos.sh
 ```
 
-脚本构建 Swift Package、生成并本地签名 `deploy/Readora.app`，随后打开应用。可用 Xcode 打开 `Package.swift` 阅读和调试。当前版本默认支持200 MB以内的无加密重排EPUB 2/3、UTF-8/带BOM UTF-16 TXT和未加密PDF；支持书库搜索、EPUB书名/作者/封面、章节目录、正文图片、EPUB/TXT字号调整与系统朗读、阅读进度保存。暂不支持iOS、同步和自由文本笔记。
+脚本构建 Swift Package、生成并本地签名 `deploy/Readora.app`，随后打开应用。可用 Xcode 打开 `Package.swift` 阅读和调试。当前版本默认支持200 MB以内的无加密重排EPUB 2/3、UTF-8/带BOM UTF-16 TXT和未加密PDF；支持书库搜索、EPUB书名/作者/封面、章节目录、正文图片、EPUB/TXT字号调整与系统朗读、阅读进度保存。该段描述macOS版本；iOS首版范围见下方，跨设备同步和自由文本笔记仍未完成。
 
 当前书库元数据暂用原子JSON存储，EPUB位置记录章节资源路径和段落索引，TXT/PDF保留段落/页索引；它们尚未达到文档中的Core Data、引用文本校验和跨设备定位架构。原文复制到应用支持目录，源文件不修改。本地数据位于 `~/Library/Application Support/Readora`。
 
@@ -131,3 +156,7 @@ AI 助手 → 语音聊天：中文/英文识别、多轮问答、可选识别�
 AI 助手统一为文字/语音输入，自动判断阅读问答、解释、摘要、翻译或应用操作，无需切换任务模式。常规应用操作直接执行，删除等操作保留具体确认。模型与引用原文折叠展示，支持连续对话及快捷提问；发送时附带当前引用与最近对话，必要时通过工具查询应用状态。所有请求使用支持 Chat Completions tools 的已启用模型，意图判断质量取决于所选模型；真实服务尚需验证。
 
 AI 面板仅显示当前回复，历史不再铺在界面中；连续追问的有限上下文仍在本次面板内保留，可用“清空对话”重置。输入区固定在底部，提供多行输入和⌘Return发送。
+
+### 工程现代化（2026-10-18）
+
+Package Tools 升级至6.4，显式使用Swift 6语言模式。macOS界面模块启用默认MainActor隔离和新版非隔离异步语义，后台RPC传输与PCM采集器显式保持非UI隔离。SwiftUI、Observation、Swift Concurrency仍是界面与并发基础，macOS 14运行基线及书库格式保留。详细边界见[技术栈](docs/06-Tech-Stack.md)。

@@ -1,7 +1,12 @@
-# Local and generated files (project-continuity)
+# Local collaboration records and personal editor state
 .agents/
+.idea/
 .DS_Store
 Thumbs.db
+xcuserdata/
+*.xcuserstate
+
+# Local environment settings; keep shareable examples
 .env
 .env.*
 !.env.example
@@ -9,7 +14,13 @@ Thumbs.db
 !.env.*.example
 !.env.*.sample
 
+# Build products and test output
 .build/
+/build/
+/DerivedData/
 deploy/*.app/
-.idea/
-.swiftpm/
+*.dSYM/
+*.xcarchive/
+*.xcresult/
+
+# Keep Xcode projects, workspaces, shared schemes and .swiftpm shared settings.
