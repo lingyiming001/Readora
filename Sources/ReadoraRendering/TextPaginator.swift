@@ -1,6 +1,5 @@
 import Foundation
 import CoreText
-import AppKit
 import ReadoraCore
 
 public struct PageSlice: Equatable, Sendable {

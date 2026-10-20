@@ -1,6 +1,5 @@
-import AppKit
 import ReadoraCore
-
+import AppKit
 public enum ReaderTypography {
     public static func font(_ preferences: ReadingPreferences, heading: Bool = false) -> NSFont {
         let size = preferences.fontSize + (heading ? 5 : 0)

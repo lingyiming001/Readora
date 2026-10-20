@@ -24,3 +24,11 @@ deploy/*.app/
 *.xcresult/
 
 # Keep Xcode projects, workspaces, shared schemes and .swiftpm shared settings.
+
+# Prepared Kokoro weights (recreated by scripts/prepare-kokoro.py)
+Resources/iOS/Kokoro/*
+!Resources/iOS/Kokoro/.gitkeep
+# Prepared MeloTTS weights (recreated by scripts/prepare-melotts.py)
+Resources/iOS/MeloTTS/*
+!Resources/iOS/MeloTTS/.gitkeep
+Vendor/KokoroRuntime/.build/

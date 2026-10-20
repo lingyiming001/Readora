@@ -48,10 +48,15 @@ public struct AIAppCommand: Codable, Equatable, Sendable {
     }
 }
 public struct AIToolCall: Codable, Equatable, Sendable, Identifiable {
-    public struct Function: Codable, Equatable, Sendable { public let name: String; public let arguments: String }
+    public struct Function: Codable, Equatable, Sendable {
+        public let name: String
+        public let arguments: String
+        public init(name: String, arguments: String) { self.name = name; self.arguments = arguments }
+    }
     public let id: String
     public let type: String
     public let function: Function
+    public init(id: String, type: String, function: Function) { self.id = id; self.type = type; self.function = function }
 }
 public struct AIChatMessage: Codable, Sendable {
     public let role: String

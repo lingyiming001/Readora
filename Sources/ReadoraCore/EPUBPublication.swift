@@ -83,7 +83,8 @@ public struct EPUBPublication: Codable, Sendable {
             for block in builder.blocks {
                 totalText += block.text.utf8.count
             }
-            guard totalText <= 8 * 1024 * 1024, blocks.count + builder.blocks.count <= 100_000 else { throw EPUBError.limitExceeded }
+            guard totalText <= 64 * 1024 * 1024 else { throw EPUBError.resourceLimit("正文总量超过64 MB") }
+            guard blocks.count + builder.blocks.count <= 500_000 else { throw EPUBError.resourceLimit("正文段落超过50万段") }
             blocks += builder.blocks
             anchors.merge(builder.anchors, uniquingKeysWith: { first, _ in first })
             if blocks.count > start {

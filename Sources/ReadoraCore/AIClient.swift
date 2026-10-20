@@ -4,6 +4,7 @@ private final class AINoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unc
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) { completionHandler(nil) }
 }
 public final class AIClient: Sendable {
+    public static let shared = AIClient()
     private let session: URLSession
     public init(session: URLSession? = nil) {
         if let session { self.session = session }
@@ -48,15 +49,72 @@ public final class AIClient: Sendable {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return try Self.answer(from: await receive(request))
     }
-    public func agent(configuration: AIConfiguration, key: String, messages: [AIChatMessage]) async throws -> AIChatTurn {
+    public func agent(configuration: AIConfiguration, key: String, messages: [AIChatMessage], actions: [AIAppAction]? = nil) async throws -> AIChatTurn {
         try Task.checkCancellation()
+        let request = try Self.agentRequest(configuration: configuration, key: key, messages: messages, actions: actions, stream: false)
+        return try AIChatTurn.parse(try await receive(request))
+    }
+    public func agentStreaming(configuration: AIConfiguration, key: String, messages: [AIChatMessage], actions: [AIAppAction]? = nil, onDelta: (String) async -> Void) async throws -> AIChatTurn {
+        try Task.checkCancellation()
+        let request = try Self.agentRequest(configuration: configuration, key: key, messages: messages, actions: actions, stream: true)
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse else { throw AIError.invalidResponse }
+        guard (200..<300).contains(http.statusCode) else { throw AIError.http(http.statusCode) }
+        guard http.value(forHTTPHeaderField: "Content-Type")?.lowercased().contains("text/event-stream") == true else {
+            return try AIChatTurn.parse(try await collect(bytes))
+        }
+        var content = ""
+        var partial: [Int: SSECallAccumulator] = [:]
+        var nextIndex = 0
+        for try await line in bytes.lines {
+            try Task.checkCancellation()
+            guard line.hasPrefix("data:") else { continue }
+            let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+            if payload == "[DONE]" { break }
+            guard let data = payload.data(using: .utf8),
+                  let chunk = try? JSONDecoder().decode(SSEChunk.self, from: data),
+                  let delta = chunk.choices?.first?.delta else { continue }
+            if let piece = delta.content, !piece.isEmpty {
+                content += piece
+                guard content.utf8.count <= 1_000_000 else { throw AIError.oversizedResponse }
+                await onDelta(content)
+            }
+            for tool in delta.tool_calls ?? [] {
+                let index = tool.index ?? { let value = nextIndex; nextIndex += 1; return value }()
+                var acc = partial[index] ?? SSECallAccumulator()
+                if let id = tool.id, !id.isEmpty { acc.id = id }
+                if let name = tool.function?.name, !name.isEmpty { acc.name = name }
+                if let arguments = tool.function?.arguments { acc.arguments += arguments }
+                partial[index] = acc
+            }
+        }
+        try Task.checkCancellation()
+        let accumulators = partial.keys.sorted().map { partial[$0]! }
+        guard accumulators.count <= 8 else { throw AIError.invalidResponse }
+        var calls: [AIToolCall] = []
+        for acc in accumulators {
+            guard acc.name == "readora", !acc.id.isEmpty, acc.id.count <= 200, acc.arguments.utf8.count <= 16000 else { throw AIError.invalidResponse }
+            calls.append(AIToolCall(id: acc.id, type: "function", function: .init(name: acc.name, arguments: acc.arguments)))
+        }
+        guard Set(calls.map(\.id)).count == calls.count, !calls.isEmpty || !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AIError.invalidResponse }
+        return AIChatTurn(message: AIChatMessage(role: "assistant", content: content.isEmpty ? nil : content, calls: calls.isEmpty ? nil : calls))
+    }
+    private static func agentRequest(configuration: AIConfiguration, key: String, messages: [AIChatMessage], actions: [AIAppAction]?, stream: Bool) throws -> URLRequest {
         var request = try Self.request(configuration: configuration, key: key, context: "应用助手", instruction: "处理用户请求")
         var body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any]
         body["messages"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(messages))
-        body["tools"] = [AIAppCommand.tool]
+        var tool = AIAppCommand.tool
+        if let actions, var function = tool["function"] as? [String: Any],
+           var parameters = function["parameters"] as? [String: Any],
+           var properties = parameters["properties"] as? [String: Any] {
+            properties["action"] = ["type": "string", "enum": actions.map(\.rawValue)]
+            parameters["properties"] = properties; function["parameters"] = parameters; tool["function"] = function
+        }
+        body["tools"] = [tool]
         body["tool_choice"] = "auto"
+        if stream { body["stream"] = true }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        return try AIChatTurn.parse(try await receive(request))
+        return request
     }
     public func models(configuration: AIConfiguration, key: String) async throws -> [String] {
         try configuration.validate(requireModel: false)
@@ -73,13 +131,24 @@ public final class AIClient: Sendable {
         guard let response = response as? HTTPURLResponse else { throw AIError.invalidResponse }
         guard (200..<300).contains(response.statusCode) else { throw AIError.http(response.statusCode) }
         guard response.expectedContentLength <= 1_048_576 else { throw AIError.oversizedResponse }
+        return try await collect(bytes)
+    }
+    private func collect(_ bytes: URLSession.AsyncBytes) async throws -> Data {
         var data = Data()
+        var batch: [UInt8] = []
+        batch.reserveCapacity(8192)
         for try await byte in bytes {
-            if data.count % 4096 == 0 { try Task.checkCancellation() }
-            guard data.count < 1_048_576 else { throw AIError.oversizedResponse }
-            data.append(byte)
+            batch.append(byte)
+            if batch.count >= 8192 {
+                try Task.checkCancellation()
+                guard data.count + batch.count < 1_048_576 else { throw AIError.oversizedResponse }
+                data.append(contentsOf: batch)
+                batch.removeAll(keepingCapacity: true)
+            }
         }
         try Task.checkCancellation()
+        data.append(contentsOf: batch)
+        guard data.count < 1_048_576 else { throw AIError.oversizedResponse }
         return data
     }
     public static func answer(from data: Data) throws -> String {
@@ -92,3 +161,21 @@ public final class AIClient: Sendable {
         return text + (choice.finish_reason == "length" ? "\n\n（回答达到服务输出上限，可缩短原文后重试。）" : "")
     }
 }
+
+private struct SSEChunk: Decodable {
+    struct Choice: Decodable {
+        struct Delta: Decodable {
+            struct ToolCallDelta: Decodable {
+                struct FunctionDelta: Decodable { let name: String?; let arguments: String? }
+                let index: Int?
+                let id: String?
+                let function: FunctionDelta?
+            }
+            let content: String?
+            let tool_calls: [ToolCallDelta]?
+        }
+        let delta: Delta?
+    }
+    let choices: [Choice]?
+}
+private struct SSECallAccumulator { var id = "", name = "", arguments = "" }

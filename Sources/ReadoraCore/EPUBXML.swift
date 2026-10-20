@@ -26,7 +26,7 @@ final class EPUBXML: NSObject, XMLParserDelegate {
     private var count = 0
     private var invalid = false
     static func parse(_ data: Data, name: String) throws -> EPUBNode {
-        guard data.count <= 8 * 1024 * 1024 else { throw EPUBError.limitExceeded }
+        guard data.count <= 32 * 1024 * 1024 else { throw EPUBError.resourceLimit("单个章节或目录超过32 MB") }
         // XMLParser may silently skip an external entity without reporting its declaration.
         // Reject entity declarations before parsing, including UTF-16/32 XML encodings.
         for encoding in [String.Encoding.utf8, .utf16LittleEndian, .utf16BigEndian, .utf32LittleEndian, .utf32BigEndian, .isoLatin1] {

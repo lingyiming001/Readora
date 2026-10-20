@@ -3,11 +3,13 @@ import CZlib
 
 public enum EPUBError: LocalizedError {
     case invalidArchive, unsafePath, limitExceeded, invalidDocument(String), encrypted, fixedLayout, empty
+    case resourceLimit(String)
     public var errorDescription: String? {
         switch self {
         case .invalidArchive: "EPUB 压缩包已损坏，或使用了不支持的压缩格式。"
         case .unsafePath: "EPUB 包含不安全或无效的资源路径。"
-        case .limitExceeded: "EPUB 内容超过安全限制，请使用较小的书籍。"
+        case .limitExceeded: "EPUB 内容超过安全限制。请拆分书籍后重试。"
+        case .resourceLimit(let reason): "EPUB 内容超过安全限制：\(reason)。请拆分书籍后重试。"
         case .invalidDocument(let name): "无法解析 EPUB 文档：\(name)。请检查文件是否完整。"
         case .encrypted: "此 EPUB 含加密资源；当前版本仅支持无 DRM、无加密资源的书籍。"
         case .fixedLayout: "当前版本仅支持重排 EPUB，暂不支持固定版式。"
@@ -62,8 +64,12 @@ struct EPUBArchive {
             let mode = (data.u32(cursor + 38) >> 16) & 0xF000
             guard mode != 0xA000 else { throw EPUBError.unsafePath }
             total += size
-            guard size <= Self.maxEntrySize, total <= Self.maxTotalSize,
-                  size <= max(1, compressed) * 250 else { throw EPUBError.limitExceeded }
+            guard size <= Self.maxEntrySize else { throw EPUBError.resourceLimit("单个资源超过64 MB") }
+            guard total <= Self.maxTotalSize else { throw EPUBError.resourceLimit("解压后总大小超过1 GB") }
+            // Small, highly repetitive CSS/XML is legitimate. Absolute size caps still apply.
+            guard size <= max(8 * 1024 * 1024, max(1, compressed) * 250) else {
+                throw EPUBError.resourceLimit("资源压缩比异常且解压后超过8 MB")
+            }
             let offset = Int(data.u32(cursor + 42))
             guard offset + 30 <= directoryStart, data.u32(offset) == 0x04034b50,
                   data.u16(offset + 6) == flags, data.u16(offset + 8) == method else { throw EPUBError.invalidArchive }

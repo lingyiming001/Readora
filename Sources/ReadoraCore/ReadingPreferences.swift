@@ -16,6 +16,7 @@ public struct ReadingPreferences: Codable, Equatable, Sendable {
     public var theme: ReaderTheme = .paper
     public var font: ReaderFont = .pingfang
     public var layout: ReadingLayout = .pages
+    public var boldText: Bool? = nil
     public var fontSize: Double = 26
     public var lineSpacing: Double = 8
     public var paragraphSpacing: Double = 20

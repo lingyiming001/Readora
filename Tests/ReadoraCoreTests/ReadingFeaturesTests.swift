@@ -5,6 +5,17 @@ import AppKit
 import AVFoundation
 
 final class ReadingFeaturesTests: XCTestCase {
+    func testReadingBoldPreferenceBackwardCompatibility() throws {
+        let encoder = JSONEncoder()
+        var preferences = ReadingPreferences()
+        let old = try encoder.encode(preferences)
+        XCTAssertNil(try JSONDecoder().decode(ReadingPreferences.self, from: old).boldText)
+        preferences.boldText = true
+        let restored = try JSONDecoder().decode(ReadingPreferences.self, from: encoder.encode(preferences))
+        XCTAssertEqual(restored.boldText, true)
+        XCTAssertEqual(restored.fontSize, preferences.fontSize)
+    }
+
     func testPaginationPreservesAllCharactersAndRestoresInsideLongParagraph() throws {
         let paragraphs = [String(repeating: "很长的一段文字，emoji 😀 与 café é 都不能在翻页时丢失。", count: 120), "下一段。📖"]
         var preferences = ReadingPreferences(); preferences.fontSize = 26
@@ -99,6 +110,53 @@ final class ReadingFeaturesTests: XCTestCase {
         XCTAssertGreaterThan(fast, 0.1)
         XCTAssertLessThan(fast, 0.5)
         XCTAssertGreaterThan(normal / fast, 5)
+    }
+    func testNeuralSpeechPhrasesPreserveAllTextAndBoundaries() throws {
+        let text = String(repeating: "这是一个中英文混读的句子😀，Hello world! 下一句包含 é 和数字123。", count: 20)
+        let source = text as NSString
+        var offset = 0, pieces: [String] = []
+        while let range = SpeechTextSegment.phraseRange(in: text, from: offset) {
+            XCTAssertEqual(range.location, offset)
+            XCTAssertGreaterThan(range.length, 0)
+            XCTAssertLessThanOrEqual(range.length, 82)
+            pieces.append(source.substring(with: range)); offset = NSMaxRange(range)
+        }
+        XCTAssertEqual(pieces.joined(), text)
+        XCTAssertEqual(offset, source.length)
+        XCTAssertNil(SpeechTextSegment.phraseRange(in: "", from: 0))
+        XCTAssertNil(SpeechTextSegment.phraseRange(in: text, from: source.length))
+    }
+    func testSpokenHighlightClipsAcrossPageAndUTF16Boundaries() throws {
+        let spoken = NSRange(location: 95, length: 20)
+        XCTAssertEqual(SpeechTextSegment.localIntersection(spoken, in: NSRange(location: 0, length: 100)), NSRange(location: 95, length: 5))
+        XCTAssertEqual(SpeechTextSegment.localIntersection(spoken, in: NSRange(location: 100, length: 100)), NSRange(location: 0, length: 15))
+        XCTAssertNil(SpeechTextSegment.localIntersection(spoken, in: NSRange(location: 115, length: 100)))
+        XCTAssertNil(SpeechTextSegment.localIntersection(NSRange(location: NSNotFound, length: 1), in: NSRange(location: 0, length: 10)))
+        XCTAssertNil(SpeechTextSegment.localIntersection(NSRange(location: Int.max - 1, length: 20), in: NSRange(location: 0, length: 10)))
+        let text = "甲😀乙é丙" as NSString
+        let range = text.range(of: "😀乙é")
+        let local = try XCTUnwrap(SpeechTextSegment.localIntersection(range, in: NSRange(location: range.location, length: range.length)))
+        XCTAssertEqual(local, NSRange(location: 0, length: range.length))
+        let resumed = try XCTUnwrap(SpeechTextSegment.range(in: text as String, from: 2))
+        XCTAssertEqual(resumed.location, 1, "Resume must not begin inside an emoji surrogate pair")
+    }
+    func testCustomSpeechMaximumPersistsAndCanReturnToTwoTimes() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = LibraryStore(root: root)
+        for maximum in [2.0, 3.25, 8.0] {
+            let preferences = SpeechPreferences(rate: maximum, maximumRate: maximum)
+            try await store.saveSpeechPreferences(preferences)
+            let restored = try await LibraryStore(root: root).speechPreferences()
+            XCTAssertEqual(restored.maximumRate, maximum)
+            XCTAssertEqual(restored.rate, maximum)
+        }
+        let restored = try await store.speechPreferences()
+        let reset = restored.capped(to: 2)
+        try await store.saveSpeechPreferences(reset)
+        let reopened = try await LibraryStore(root: root).speechPreferences()
+        XCTAssertEqual(reopened.maximumRate, 2)
+        XCTAssertEqual(reopened.rate, 2)
     }
     func testEightTimesSpeechAndBackwardCompatibleVoicePreferences() throws {
         let old = Data(#"{"rate":1.5,"maximumRate":2}"#.utf8)

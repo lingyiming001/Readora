@@ -1,4 +1,5 @@
 import XCTest
+import CZlib
 @testable import ReadoraCore
 
 final class EPUBTests: XCTestCase {
@@ -85,6 +86,28 @@ final class EPUBTests: XCTestCase {
         var bomb = original
         bomb.replaceSubrange(central + 24..<central + 28, with: [0, 0, 0, 0x10])
         XCTAssertThrowsError(try EPUBArchive(data: bomb))
+    }
+
+    func testLongChineseNovelExceedingOldEightMegabyteLimit() throws {
+        let paragraph = String(repeating: "长篇小说正文测试。", count: 12)
+        let body = String(repeating: "<p>\(paragraph)</p>", count: 28_000)
+        XCTAssertGreaterThan(body.utf8.count, 8 * 1024 * 1024)
+        let book = try EPUBPublication.read(data: fixture(body: body))
+        XCTAssertEqual(book.blocks.count, 28_000)
+        XCTAssertEqual(book.blocks.last?.text, paragraph)
+    }
+
+    func testHighlyCompressedSmallResourceAndLargeBomb() throws {
+        let small = Data(repeating: 65, count: 1024 * 1024)
+        let archive = try EPUBArchive(data: zip([("style.css", small)], compressed: true))
+        XCTAssertEqual(try archive.read("style.css"), small)
+        XCTAssertThrowsError(try EPUBArchive(data: zip([("bomb", Data(repeating: 65, count: 9 * 1024 * 1024))], compressed: true)))
+    }
+
+    func testOversizedChapterReportsSpecificLimit() throws {
+        XCTAssertThrowsError(try EPUBXML.parse(Data(repeating: 32, count: 32 * 1024 * 1024 + 1), name: "large.xhtml")) { error in
+            XCTAssertTrue(error.localizedDescription.contains("32 MB"))
+        }
     }
 
     func testResourceResolution() throws {
@@ -181,15 +204,33 @@ final class EPUBTests: XCTestCase {
     }
 }
 
-private func zip(_ entries: [(String, Data)]) -> Data {
+private func zip(_ entries: [(String, Data)], compressed: Bool = false) -> Data {
     var result = Data(), directory = Data()
     for (name, bytes) in entries {
         let filename = Data(name.utf8), offset = result.count, crc = checksum(bytes)
-        result.le(UInt32(0x04034b50)); result.le(UInt16(20)); result.le(UInt16(0x800)); result.le(UInt16(0))
-        result.le(UInt16(0)); result.le(UInt16(0)); result.le(crc); result.le(UInt32(bytes.count)); result.le(UInt32(bytes.count))
-        result.le(UInt16(filename.count)); result.le(UInt16(0)); result += filename; result += bytes
-        directory.le(UInt32(0x02014b50)); directory.le(UInt16(20)); directory.le(UInt16(20)); directory.le(UInt16(0x800)); directory.le(UInt16(0))
-        directory.le(UInt16(0)); directory.le(UInt16(0)); directory.le(crc); directory.le(UInt32(bytes.count)); directory.le(UInt32(bytes.count))
+        var payload = bytes
+        if compressed {
+            var stream = z_stream()
+            precondition(deflateInit2_(&stream, 9, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size)) == Z_OK)
+            payload = Data(count: Int(compressBound(uLong(bytes.count))))
+            let status = bytes.withUnsafeBytes { input in
+                payload.withUnsafeMutableBytes { output in
+                    stream.next_in = UnsafeMutablePointer(mutating: input.bindMemory(to: Bytef.self).baseAddress)
+                    stream.avail_in = uInt(input.count)
+                    stream.next_out = output.bindMemory(to: Bytef.self).baseAddress
+                    stream.avail_out = uInt(output.count)
+                    return deflate(&stream, Z_FINISH)
+                }
+            }
+            precondition(status == Z_STREAM_END)
+            payload.count = Int(stream.total_out)
+            deflateEnd(&stream)
+        }
+        result.le(UInt32(0x04034b50)); result.le(UInt16(20)); result.le(UInt16(0x800)); result.le(UInt16(compressed ? 8 : 0))
+        result.le(UInt16(0)); result.le(UInt16(0)); result.le(crc); result.le(UInt32(payload.count)); result.le(UInt32(bytes.count))
+        result.le(UInt16(filename.count)); result.le(UInt16(0)); result += filename; result += payload
+        directory.le(UInt32(0x02014b50)); directory.le(UInt16(20)); directory.le(UInt16(20)); directory.le(UInt16(0x800)); directory.le(UInt16(compressed ? 8 : 0))
+        directory.le(UInt16(0)); directory.le(UInt16(0)); directory.le(crc); directory.le(UInt32(payload.count)); directory.le(UInt32(bytes.count))
         directory.le(UInt16(filename.count)); directory.le(UInt16(0)); directory.le(UInt16(0)); directory.le(UInt16(0)); directory.le(UInt16(0))
         directory.le(UInt32(0)); directory.le(UInt32(offset)); directory += filename
     }

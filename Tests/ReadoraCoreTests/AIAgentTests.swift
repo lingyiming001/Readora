@@ -66,6 +66,18 @@ final class AIAgentTests: XCTestCase {
         XCTAssertThrowsError(try AIChatTurn.parse(Data(invalid.utf8)))
     }
     @MainActor
+    func testAgentStreamsDeltasAcrossToolRounds() async throws {
+        let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [SSEStubProtocol.self]
+        let client = AIClient(session: URLSession(configuration: configuration))
+        var settings = AIConfiguration(); settings.model = "mock"; settings.baseURL = "https://agent.invalid/v1"
+        var performed: [AIAppAction] = [], streamed: [String] = []
+        let result = try await AIAppAgent.run(client: client, configuration: settings, key: "dummy", question: "添加一个书架", excerpt: "", perform: { command in
+            performed.append(command.action); return "已创建书架"
+        }, progress: { _ in }, answer: { streamed.append($0) })
+        XCTAssertEqual(performed, [.createShelf]); XCTAssertEqual(result, "任务完成")
+        XCTAssertEqual(streamed, ["先查一下", "", "任务完成"])
+    }
+    @MainActor
     func testAgentExecutesToolAndReturnsAnswerAfterToolResult() async throws {
         let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [AgentStubProtocol.self]
         let client = AIClient(session: URLSession(configuration: configuration))
@@ -100,6 +112,33 @@ final class AIAgentTests: XCTestCase {
             XCTFail("denial ignored")
         } catch { XCTAssertTrue(error is AIAppAgentError) }
         XCTAssertEqual(calls, 1)
+    }
+    @MainActor
+    func testPlatformActionsRejectUnsupportedToolBeforeExecution() async throws {
+        let session = URLSessionConfiguration.ephemeral; session.protocolClasses = [AgentStubProtocol.self]
+        var settings = AIConfiguration(); settings.model = "mock"; settings.baseURL = "https://agent.invalid/v1"
+        var performed = false
+        _ = try await AIAppAgent.run(client: AIClient(session: URLSession(configuration: session)), configuration: settings,
+            key: "dummy", question: "测试手机能力", excerpt: "", actions: [.state], platformContext: "手机能力测试",
+            perform: { _ in performed = true; return "不应执行" }, progress: { _ in })
+        XCTAssertFalse(performed)
+    }
+    func testShelfRenameRemovalAndMembershipSurviveReopen() async throws {
+        let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("book.txt"); try Data("书架测试".utf8).write(to: source)
+        let library = root.appendingPathComponent("Library"), store = LibraryStore(root: library)
+        let imported = try await store.importFile(source), book = try XCTUnwrap(imported.first)
+        let first = try await store.addCollection(title: "科幻")
+        let all = try await store.addCollection(title: "待读")
+        _ = try await store.changeBook(id: book.id, change: .collection(first[0].id, true))
+        _ = try await store.changeBook(id: book.id, change: .collection(all[1].id, true))
+        _ = try await store.renameCollection(id: first[0].id, title: "科幻小说")
+        _ = try await store.deleteCollection(id: all[1].id)
+        let reopened = LibraryStore(root: library)
+        let shelves = try await reopened.collections(), books = try await reopened.load()
+        XCTAssertEqual(shelves.map(\.title), ["科幻小说"])
+        XCTAssertEqual(books.first?.collectionIDs, [first[0].id])
+        XCTAssertEqual(books.count, 1)
     }
     func testDeletionRefusesRestoredBooksAndPreservesSource() async throws {
         let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
@@ -136,6 +175,48 @@ final class AIAgentTests: XCTestCase {
     }
 }
 
+private final class SSEStubProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        var data = request.httpBody ?? Data()
+        if data.isEmpty, let stream = request.httpBodyStream {
+            stream.open(); defer { stream.close() }
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                if count <= 0 { break }; data.append(contentsOf: buffer.prefix(count))
+            }
+        }
+        let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        XCTAssertEqual(object?["stream"] as? Bool, true)
+        let messages = object?["messages"] as? [[String: Any]]
+        let complete = messages?.last?["role"] as? String == "tool"
+        let body: String
+        if complete {
+            body = #"""
+                data: {"choices":[{"delta":{"content":"任务完成"}}]}
+
+                data: [DONE]
+                """#
+        } else {
+            body = #"""
+                data: {"choices":[{"delta":{"content":"先查一下"}}]}
+
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"readora","arguments":"{\"action\":\""}}]}}]}
+
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"create_shelf\",\"text\":\"AI书架\"}"}}]}}]}
+
+                data: [DONE]
+                """#
+        }
+        guard let url = request.url else { return }
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "text/event-stream"])!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(body.utf8)); client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
 private final class AgentStubProtocol: URLProtocol, @unchecked Sendable {
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -158,6 +239,14 @@ private final class AgentStubProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didReceive: HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data(body.utf8)); client?.urlProtocolDidFinishLoading(self)
             return
+        }
+        if (messages?.first?["content"] as? String)?.contains("手机能力测试") == true {
+            let tools = object?["tools"] as? [[String: Any]]
+            let function = tools?.first?["function"] as? [String: Any]
+            let parameters = function?["parameters"] as? [String: Any]
+            let properties = parameters?["properties"] as? [String: Any]
+            let action = properties?["action"] as? [String: Any]
+            XCTAssertEqual(action?["enum"] as? [String], ["state"])
         }
         let complete = messages?.last?["role"] as? String == "tool"
         let body = complete ? #"{"choices":[{"message":{"role":"assistant","content":"任务完成"}}]}"# : #"{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call1","type":"function","function":{"name":"readora","arguments":"{\"action\":\"create_shelf\",\"text\":\"AI书架\"}"}}]}}]}"#

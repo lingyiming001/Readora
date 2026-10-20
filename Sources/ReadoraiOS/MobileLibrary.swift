@@ -9,16 +9,17 @@ final class MobileLibrary {
     var preferences = ReadingPreferences()
     var registry = AIModelRegistry()
     var query = ""
-    var favoritesOnly = false
+    var filter: LibraryFilter = .all
+    var shelves: [BookCollection] = []
+    var sort: LibrarySort = .recent
     var importing = false
     var error: String?
     private var loaded = false
     var visibleBooks: [Book] {
-        LibraryQuery.books(books, filter: favoritesOnly ? .favorites : .all, query: query, sort: .recent)
+        LibraryQuery.books(books, filter: filter, query: query, sort: sort)
     }
-    init() {
-        let root = URL.applicationSupportDirectory.appendingPathComponent("Readora", isDirectory: true)
-        store = LibraryStore(root: root)
+    init(root: URL? = nil) {
+        store = LibraryStore(root: root ?? URL.applicationSupportDirectory.appendingPathComponent("Readora", isDirectory: true))
     }
     func load() async {
         guard !loaded else { return }
@@ -26,6 +27,7 @@ final class MobileLibrary {
             books = try await store.load()
             preferences = try await store.readingPreferences()
             registry = try await store.aiModelRegistry()
+            shelves = try await store.collections()
             loaded = true
         } catch { self.error = error.localizedDescription }
     }
@@ -62,6 +64,33 @@ final class MobileLibrary {
         do { books = try await store.changeBook(id: book.id, change: .trash(!restore)) }
         catch { self.error = error.localizedDescription }
     }
+    var filterTitle: String {
+        switch filter {
+        case .all: "全部书籍"
+        case .reading: "正在阅读"
+        case .favorites: "收藏"
+        case .finished: "已读"
+        case .trash: "回收站"
+        case .collection(let id): shelves.first { $0.id == id }?.title ?? "书架"
+        }
+    }
+    func saveShelf(title: String, id: UUID? = nil) async {
+        do {
+            if let id { shelves = try await store.renameCollection(id: id, title: title) }
+            else { shelves = try await store.addCollection(title: title) }
+        } catch { self.error = error.localizedDescription }
+    }
+    func deleteShelf(_ shelf: BookCollection) async {
+        do {
+            shelves = try await store.deleteCollection(id: shelf.id)
+            if filter == .collection(shelf.id) { filter = .all }
+            books = try await store.load()
+        } catch { self.error = error.localizedDescription }
+    }
+    func membership(_ book: Book, shelf: BookCollection, included: Bool) async {
+        do { books = try await store.changeBook(id: book.id, change: .collection(shelf.id, included)) }
+        catch { self.error = error.localizedDescription }
+    }
     func saveAppearance() async {
         guard loaded else { return }
         do { try await store.saveReadingPreferences(preferences) }
@@ -96,6 +125,7 @@ final class MobileReader {
     var paragraphs: [String] = []
     var pdf: PDFDocument?
     var position: Int? = nil
+    var textOffset = 0
     var loaded = false
     var error: String?
     var marks: [ReadingMark] = []
@@ -129,6 +159,12 @@ final class MobileReader {
             try Task.checkCancellation()
             marks = try await store.marks(for: book.id)
             position = TextContent.clampedPosition(book.position, count: count)
+            textOffset = book.textOffset ?? 0
+            var speechPreferences = try await store.speechPreferences()
+            if !UserDefaults.standard.bool(forKey: "mobileSpeechMaximumConfigured") {
+                speechPreferences = speechPreferences.capped(to: 2)
+            }
+            speech.configure(speechPreferences)
             loaded = true
             await saveProgress()
         } catch is CancellationError {} catch { self.error = error.localizedDescription }
@@ -145,18 +181,18 @@ final class MobileReader {
         guard loaded, let position else { return }
         do {
             let block = publication?.blocks.indices.contains(position) == true ? publication?.blocks[position] : nil
-            _ = try await store.updatePosition(id: book.id, position: position, resourceID: block?.resourceID, paragraphIndex: block?.paragraphIndex)
+            _ = try await store.updatePosition(id: book.id, position: position, resourceID: block?.resourceID, paragraphIndex: block?.paragraphIndex, textOffset: textOffset)
         } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
     func finish() {
-        saveTask?.cancel(); speech.stop(); speech.onParagraph = nil
+        saveTask?.cancel(); speech.finish(); speech.onPosition = nil
     }
     func addBookmark() async {
         do {
             let index = position ?? 0
             let block = publication?.blocks.indices.contains(index) == true ? publication?.blocks[index] : nil
             let mark = ReadingMark(bookID: book.id, kind: .bookmark, position: index, resourceID: block?.resourceID,
-                paragraphIndex: block?.paragraphIndex, quote: String(currentText.prefix(120)))
+                paragraphIndex: block?.paragraphIndex, utf16Offset: textOffset, quote: String(currentText.prefix(120)))
             marks = try await store.saveMark(mark)
         } catch { self.error = error.localizedDescription }
     }

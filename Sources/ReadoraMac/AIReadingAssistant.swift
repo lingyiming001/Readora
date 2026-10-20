@@ -194,7 +194,7 @@ struct AIReadingAssistant: View {
             do {
                 let key = try await AICredentialStore.shared.key(account: configuration.credentialAccount) ?? ""
                 let result: String
-                result = try await AIAppAgent.run(client: AIClient(), configuration: configuration, key: key, question: taskQuestion, excerpt: excerpt, history: history, perform: { command in
+                result = try await AIAppAgent.run(client: .shared, configuration: configuration, key: key, question: taskQuestion, excerpt: excerpt, history: history, perform: { command in
                     let bound = model.boundAICommand(command)
                     if bound.requiresConfirmation {
                         try Task.checkCancellation()
@@ -204,7 +204,7 @@ struct AIReadingAssistant: View {
                         return try await model.executeAICommand(bound, confirmed: true)
                     }
                     return try await model.executeAICommand(bound)
-                }, progress: { _ in })
+                }, progress: { _ in }, answer: { answer = $0 })
                 try Task.checkCancellation(); answer = result
                 history = AIConversation.appending(history, question: taskQuestion, answer: result)
                 question = ""

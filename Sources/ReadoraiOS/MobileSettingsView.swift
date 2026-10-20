@@ -11,6 +11,10 @@ struct MobileSettingsView: View {
         NavigationStack {
             Form {
                 Section("阅读外观") {
+                    Picker("翻页方式", selection: $library.preferences.layout) {
+                        Text("左右卷页").tag(ReadingLayout.pages)
+                        Text("连续滚动").tag(ReadingLayout.scroll)
+                    }
                     Picker("主题", selection: $library.preferences.theme) {
                         ForEach(ReaderTheme.allCases, id: \.self) { Text($0.title).tag($0) }
                     }

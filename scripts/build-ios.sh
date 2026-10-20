@@ -2,6 +2,9 @@
 set -eu
 cd "${0:A:h:h}"
 mkdir -p deploy/ios
+if [[ ! -f Resources/iOS/Kokoro/readora-model.json ]]; then
+    python3 scripts/prepare-kokoro.py
+fi
 xcodebuild -project Readora.xcodeproj -scheme ReadoraiOS \
     -configuration Release -destination 'generic/platform=iOS' \
     -derivedDataPath .build/ios \
