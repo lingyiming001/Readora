@@ -1,78 +1,80 @@
-# 13 · TTS 朗读引擎
+# 13 · 离线朗读引擎
 
-## 抽象与所有权
+Mac `SpeechPlayer` 和 iPhone `MobileSpeech` 使用 Kokoro v1.1-zh 和共享 sherpa-onnx 运行时，通过 AVAudioEngine 播放。Melo、系统合成声音、Qwen3-TTS 及 TTSKit 依赖已从朗读与聊天回复链路移除。语音识别仍使用系统 Speech 框架。
 
-应用级 SpeechCoordinator 强持有 SpeechEngine，管理唯一会话；NativeSpeechEngine 强持有 AVSpeechSynthesizer。delegate 只发事件，不同时更新数据库和 UI。[Apple 文档](https://developer.apple.com/documentation/avfaudio/avspeechsynthesizer) 提供队列、暂停和 delegate 能力，应用必须保持 synthesizer 生命周期。
+## 模型与准备
 
-```swift
-import Foundation
+仅保留中英双语 Kokoro，15 个音色沿用旧稳定标识（如 `kokoro:56`）。模型权重以 FP16 存储，常量 Cast 在 ONNX Runtime 会话优化时恢复 FP32 CPU 计算；不依赖 CPU 的 FP16 运算支持，也不声称运行内存减半。资源约 198 MB（189 MiB），包括模型、15 音色、双语词典、espeak 数据与日期/数字/电话规则。完整安装包另含应用和静态运行库。
 
-struct SpeechRequest: Sendable {
-    let sessionID: UUID
-    let generation: UInt64
-    let segment: TextSegment
-    let voiceIdentifier: String?
-    let normalizedRate: Double // 0...1，适配到系统合法范围
-}
-enum SpeechEvent: Sendable {
-    case started(UUID, UInt64, String)
-    case range(UUID, UInt64, String, NSRange)
-    case paused(UUID, UInt64, String)
-    case resumed(UUID, UInt64, String)
-    case finished(UUID, UInt64, String)
-    case cancelled(UUID, UInt64, String)
-    case failed(UUID, UInt64, String)
-}
-@MainActor
-protocol SpeechEngine: AnyObject {
-    var events: AsyncStream<SpeechEvent> { get }
-    func start(_ request: SpeechRequest) async throws
-    func pause() async throws
-    func resume() async throws
-    func stop() async
-}
+准备环境：`pip install onnx==1.20.1 numpy==2.5.4`，然后运行 `python3 scripts/prepare-kokoro.py`。脚本校验固定上游压缩包 SHA-256，再生成轻量图、音色表和记录产物摘要的清单。更新资源前备份旧目录到 `.build/kokoro-previous-*`。首次准备需要下载，安装后推理只读本机文件，不调用网络 API 或自动下载。
+
+旧 Melo、系统、Qwen 或失效音色标识回退到 `kokoro:56`，保留语速与阅读位置。缺失文件时显示错误。
+
+## 播放、速度与缓存
+
+按句号、问号等自然句界分段，逗号至少约 32 字才切分；保留句末引号、完整字符和读音词条，英文缩写（如 Dr.）和小数不误当句末；长度上限落在词中时，使用 NaturalLanguage 的本地分词边界调整。所有进度仍使用原文 UTF-16 范围，不修改书籍。
+
+推理在 actor 上串行进行。两端共享 SpeechChunkCursor，首段约40个UTF-16单位、后续约80；单路生产者在上一段播放期间预生成并排入下一段，最多排程两段，避免独立预取任务抢先推理后一句。停止、跳转、换声、换速或修改词典取消旧任务，并用会话标识拒收旧结果。暂停期间生成的结果等待恢复。两端连续排程并复用播放器，正常语速直接连接音频节点以避免额外变速处理。
+
+0.5–2× 优先调整模型自身语速；超过 2× 再使用保音调加速，最高可设置 8×。最近音频最多缓存 20 秒 PCM（24kHz 下约 2 MB）；音色、文本、语速、模型和词典变化不会误用旧结果。结束后模型延迟 30 秒释放，快速重播无需重新加载；手机退出阅读时主动释放。所有输出检查有限数值、非静音和时长边界。
+
+## 多音字纠正
+
+两端「朗读设置 → 多音字纠正 · 本地词典」可编辑、删除并试听词条，每行填写：
+
+```text
+银行 = yin2 hang2
+行长 = hang2 zhang3
+重庆 = chong2 qing4
+音乐 = yin1 yue4
 ```
 
-依赖 TextSegment 定义见阅读协议。start 表示开始一个有界 segment；Coordinator 负责取下一段，适配器内部可预排 1–2 句但不可排全书。事件携带 session/generation/segmentID，换章/换声音/seek 后拒收旧事件。接口不假定所有引擎有字级时间戳；后续增加 SpeechCapabilities 声明支持粒度。
+支持声调数字 1–5、带调拼音和 ü/v/u:，不写声调按轻声处理。每字一个空格分隔音节。保存前校验中文词语、音节数、声调和重复项；最多 300 条。本地 JSON 持久化，应用到所有书籍；优先使用完整词语，单字规则会影响该字的其他读法。试听不保存词典，点击保存后用于正文。清空后保存可恢复默认词典。旧设置自动迁移为空词典。
 
-## 状态机
+自定义拼音转换为 Kokoro 音素词典条目，自定义词条优先于内置词条，内置保留“还款”相关修正。修改词典重建原生会话并清空旧 PCM 缓存。尚无单次选区或单本书作用域，也不保证自动判断所有人名、地名及多音字。
 
-idle → preparing → playing ↔ paused → completed；playing 可进入 interrupted / failed / stopping；stop 最终 idle。preparing 期间再次播放合并，seek 递增 generation、清空旧队列后从新句起播。pause 调用成功不代表系统已暂停，收到对应 delegate 才进入 paused；超时后提供重试，不谎报播放状态。
+## 实测与边界（2026-10-26，M1 Mac）
 
-paused 与 interrupted 区分用户意图。来电结束只在之前 playing、用户未暂停、系统允许且音频激活成功时尝试恢复；失败保持暂停。冷启动将历史 playing 转为 resumable，不自动播放。
+同一中文句约 5.2 秒音频：原始 FP32 约 2.16 秒，最终 FP16 存储方案约 2.40 秒；英语约 2.84 秒音频耗时 1.15 秒，混读约 2.98 秒音频耗时 1.00 秒。修复 STFT 量化节点的 INT8 候选约 148 MB，但同中文句约 4.73 秒，故未采用。以上是本机小样本，不是手机性能承诺；缓存命中不计入这些推理时间。
 
-## 文本分句和位置
+自动化验证覆盖本地中文、英语、混读、0.5/1/1.5/2×、稳定音色映射、有限非静音音频、读音解析、旧设置迁移、词典切换与缓存失效、原文分段完整性。数值有效不等于人工听感验收。真机首句延迟、持续播放、锁屏、温度和内存需进一步验收；后台被强杀后无法继续。
 
-使用 NLTokenizer(.sentence) 初分句，针对中文引号、英文缩写、数字、小数、章节标题回归；每段带 UTF-16 源范围，禁止用标点字符串 split 作为全部逻辑。超长句按语义边界切为约 200–500 UTF-16 单元，保持映射；跳过纯导航、页码、不可见文本，脚注是否朗读由用户选择。
+上游：[Kokoro v1.1-zh](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[STFT 量化修复](https://github.com/k2-fsa/sherpa-onnx/pull/4087)。
 
-每句 utterance 对应 segment，delegate range 是 utterance 局部 NSRange，需加回规范文本源偏移。若替换字符或移除控制符，保存单调 offset map，不得直接相加。语言识别优先 EPUB lang/段落 lang，再 NaturalLanguage 检测，低置信度回退用户语言；不对每个外来词切声。声音按当前设备 `speechVoices()` 枚举，标识失效时提示并回退，不能程序化承诺下载所有高质量声音。
+## build20 / build32 进一步优化（2026-10-26）
 
-## 播放导航和设置
+Mac 改为提前排入下一段音频，减少“播完再排程”的主线程间隙；手机去掉多个并发预取生产者，严格按正文顺序生成。进度只跟随实际发声的队列首段，跳转/停止后的旧回调不会覆盖新书位置；暂停状态开始后恢复也保留原段落与偏移。跳过没有可朗读文字的段落与残余标点。
 
-上下句/段/章均以文本索引找边界，章末预取下一章。速率归一化映射系统最小/默认/最大范围；UI 显示相对档位，不承诺线性真实倍速。修改声音或速度从当前句重启，向用户说明可能重听一句。睡眠定时存绝对 deadline 与章末策略，每次事件/进入后台/恢复时复核，不依赖单次主线程 Timer。
+M1 同段长中文会话冷启动对照：原约80字分段（实际79）等待7.13秒生成13.54秒音频，新首段约40字（实际39）等待3.59秒生成7.08秒音频；通过先播放短首段减少等待，不是模型吞吐量提高一倍。线程对照：4线程中文约1.93秒，2线程3.28秒、3线程2.48秒、1线程5.95秒，保留Mac默认4线程，手机线程策略保持原有按CPU数量选择。均非手机实测。
 
-每 1 秒及暂停、切句、切章、scene inactive 保存 SpeechPosition；恢复默认从检查点句首，异常终止可能重听数秒。保存失败保持脏标记并可导出诊断。
+测试覆盖分段顺序、空段与标点跳过、原文重建、英文缩写/小数、跨长度边界的引号、字典词条、暂停重配与停止后旧生产者失效。实际扬声器、锁屏连续播放及听感仍需人工真机验收。
 
-## 后台与媒体适配
+分词接口依据：[Apple NLTokenizer](https://developer.apple.com/documentation/naturallanguage/tokenizing-natural-language-text)。
 
-iOS 在用户开始播放时配置 AVAudioSession `.playback`、适当 `.spokenAudio` mode、激活会话，启用 audio background mode；播放结束后按策略释放。监听 interruption、routeChange、mediaServicesWereReset，旧设备断开默认暂停，蓝牙切换不直接假定可恢复。[AVAudioSession 文档](https://developer.apple.com/documentation/avfaudio/avaudiosession) 描述后台音频配置基础；AVSpeechSynthesizer 在各系统/设备的连续后台表现仍须真机测试，不保证应用被强杀后继续。
+## build22 / build34：高速完整预缓存（2026-10-26）
 
-MPRemoteCommandCenter 只注册可履行的播放、暂停、上一/下一段命令，清理重复 handler；Now Playing 设置书名/章节/播放状态。文本合成没有可靠时长时不提供虚假 duration 与任意时间 seek；elapsed time 可显示当前会话实际经过时间但不作为文字百分比。iPhone 锁屏能力是 V1 P0 门槛；Mac 媒体键与系统中心表现单独验证，不能把 iOS 支持推断为 Mac 一致。
+用户明确选择「先完整缓存剩余正文，再连续播放」。`SpeechPreferences.cacheBeforePlayback` 默认开启，旧设置向后迁移为开启；在2×/4×等至少1.75×时，后台遍历剩余正文、生成整段音频并写入本机CAF文件，显示准备百分比。准备完成后只从文件读取PCM播放，不再依赖模型实时生成，因此模型吞吐慢于4×消耗也不会在准备完成后的播放过程中造成缺粮。首次等待随剩余正文长度增长，手机生成期间须保持应用前台；停止/跳转/换声/换速/修改词典可取消准备。
 
-## 原生与云端取舍
+缓存由模型摘要、音色、模型语速、自定义读音和实际剩余文本共同标识，build23/35起，2×/4×使用相同的正常语速模型音频，仅播放端加速不同，可复用同一起点缓存。音频不上传、不降低声线质量，也不通过降低有效播放速度隐藏卡顿。原文UTF16和各段音频帧范围一一记录，依旧按实际播放的段落发布高亮与进度。
 
-| 维度 | 系统 TTS | 未来 AI TTS |
-|---|---|---|
-| 自然度 | 因已安装语言/声音而异 | 供应商、声音、文本差异大，需试听评估 |
-| 离线 | 已安装系统声音可离线，设备实测 | 通常需联网；本地模型另作评估 |
-| 延迟/成本 | 无应用侧逐字 API 计费；仍有设备资源成本 | 首包延迟、按量计费、缓存和重试成本 |
-| 隐私 | 应用不主动上传正文 | 需要明确逐次或设置授权、供应商保留策略 |
-| 对齐 | 系统 range 回调，非硬实时 | 必须提供标记或降级段高亮 |
+完整音频写入单个本地CAF/Float32文件，内存只持有有限播放储备。读取可能少于请求帧数，已采用4096帧循环补齐并逐样本对照测试，避免短读丢帧。播放期间保留读句柄并用锁串行读取，旧缓存清理不会打断正在播放的文件。缓存超过512MB时清理其他旧文件，保留本次完整音频；完整长书本身可能超过此预算，并占用相应本机存储。系统清理缓存后会重新准备。
 
-未来 CloudSpeechEngine 下载音频采用 AVPlayer/AVAudioEngine 等独立实现，缓存按内容/声音/模型版本标识；用户撤回授权即取消请求和清理缓存。当前不集成、不上传、不承诺厂商效果。
+动态缓冲模式仍可在朗读设置中关闭完整缓存后使用：按实际播放秒数而非固定两段计算储备，2×基本起播6秒、4×12秒；根据实测生成/消耗比增加储备，后台目标约起播储备的两倍，最多64段或约120秒模型音频。暂停冻结消耗计时，耗尽后集中补足再恢复，临近正文末尾允许不足目标起播。合并过碎的同段短句，build23/35起取消音量阈值裁切，保留原始句首句尾，包括低音量辅音与轻声。
 
-## 回归修正规则
+本次iPhone12真实测试（build33动态模式、16段自制文本）：3线程生成3.36秒/4×播放1.97秒；4线程3.23秒；2线程3.99秒，已持久选择4线程。2×连续测试起播12.30秒/总60.92秒，4×起播50.21秒/总74.64秒，均完成且缓冲重启0次、无错误。4×在此短样本中几乎准备了全部内容才开始播放，不能据此推断动态模式长书永不卡顿，这也是新增完整预缓存的原因。
 
-暂停/继续的确认必须由 paused/resumed 事件进入状态机；不能仅靠方法返回或只包含 start/finish 的旧事件合同推断。delegate 回调需先转换为可发送的值，再切到 MainActor；只在新会话已建立时恢复接收对应 generation。
+没有采用直接模型4×方案来掩盖吞吐不足：实测其时长并不线性，保留原模型端最高2×加播放端保音调加速的速度语义。`max_num_sentences`在此Kokoro版本会被忽略，不把无效的批次配置当作优化。
 
-range 高频事件采用独立可合并最新值通道，paused/finished/cancelled/failed 走可靠控制通道；不得无界缓存逐词事件，也不得用同一 bufferingNewest(1) 丢弃完成通知。持续播放的定时停止使用可取消的 deadline 调度任务，并在句边界复核；仅在句边界检查会导致长句超时，只有 Timer 则可能受调度影响，两者结合并在真机测最大误差。
+完整缓存模式真机2×/4×验证结果另见本轮交付记录；音频会话中断仍会按系统规则暂停，不能承诺系统中断、进程被杀或存储故障下无条件播放。
+
+最终build34完整缓存真机验证：16段自制文本，2×首次准备47.90秒、总96.47秒；4×复用同文件起播0.114秒、总24.46秒；两轮完成、缓冲重启均0、无错误。95项回归中91通过、4项可选基准默认跳过，断网缓存生成/读取测试通过。旧声音/Qwen大模型未回归，资源体积不变。
+
+## build23 / build35：吞音与选区修复
+
+取消自动裁切模型音频边缘；高速播放改为1×生成后用AVAudioUnitTimePitch保音调加速，overlap=16。缓存版本改为v2-uncut，避免继续使用已裁切的旧音频。生成时间与完整缓存体积会增加；吞音改善仍需实际文本听感验收。
+
+手机分页保留CoreText绘制，增加按原文切片定位的原生UITextView选区；文字菜单提供“从选区开始朗读”。滚动正文移除拦截长按的外层菜单，把高亮/AI/朗读移入原生菜单。高亮刷新保留选区，拖动选区不再自动重启Mac朗读；两端增加明确的选区朗读入口。切片偏移按UTF16映射，避免从emoji代理对中间开始。
+
+## build24 / build37：起播会话与短首段
+
+手机把AVAudioSession激活放到音频队列准备就绪时，同一MobileSpeech内部重启保留已激活会话，用户停止/自然完成才释放。收到系统中断会标记需重新激活。即时模式首段目标24个UTF16单位，保护词和组合字符边界，后续保持80字目标；完整缓存分段与缓存标识保持不变。Mac已有完整缓存时也不再等待动态推理储备。

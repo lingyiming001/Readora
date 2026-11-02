@@ -8,7 +8,53 @@ final class MobileLibrary {
     var books: [Book] = []
     var preferences = ReadingPreferences()
     var registry = AIModelRegistry()
+    var mcp = MobileMCPService()
+    var externalCommand: AIAppCommand?
+    var assistantBusy = false
+    private var externalContinuation: CheckedContinuation<Bool, Never>?
+    func resolveExternal(_ accepted: Bool) {
+        let continuation = externalContinuation; externalContinuation = nil; externalCommand = nil
+        continuation?.resume(returning: accepted)
+    }
+    func startMCP() async {
+        await mcp.start { [weak self] command in
+            guard let self else { throw CancellationError() }
+            return try await self.executeExternal(command)
+        }
+    }
+    private func executeExternal(_ input: AIAppCommand) async throws -> String {
+        guard !assistantBusy, externalContinuation == nil else { throw NSError(domain: "Readora", code: 429, userInfo: [NSLocalizedDescriptionKey: "应用内AI正在处理请求，请稍后重试。"] ) }
+        var command = input
+        if command.bookID == nil { command.bookID = currentReader?.book.id }
+        if command.action == .emptyTrash { command.ids = books.filter { $0.trashedAt != nil }.map(\.id) }
+        if command.requiresConfirmation {
+            let timeout = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(45)); self?.resolveExternal(false) } catch {}
+            }
+            defer { timeout.cancel() }
+            let accepted = await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in externalCommand = command; externalContinuation = continuation }
+            } onCancel: { Task { @MainActor [weak self] in self?.resolveExternal(false) } }
+            guard accepted else { throw AIAppAgentError.userDeclined }
+        }
+        try Task.checkCancellation()
+        return try await performAssistant(command)
+    }
     var query = ""
+    var navigationPath: [UUID] = []
+    var currentReader: MobileReader?
+    var requestedPanel: String?
+    var recentSpeech: [SpeechHistoryEntry] = []
+    var listMode = UserDefaults.standard.object(forKey: "mobileLibraryListMode") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(listMode, forKey: "mobileLibraryListMode") }
+    }
+    var recentSpeechBooks: [Book] {
+        recentSpeech.prefix(3).compactMap { item in books.first { $0.id == item.bookID && $0.trashedAt == nil } }
+    }
+    func recordSpeech(_ id: UUID) async {
+        do { recentSpeech = try await store.recordSpeech(bookID: id) }
+        catch { self.error = error.localizedDescription }
+    }
     var filter: LibraryFilter = .all
     var shelves: [BookCollection] = []
     var sort: LibrarySort = .recent
@@ -25,9 +71,19 @@ final class MobileLibrary {
         guard !loaded else { return }
         do {
             books = try await store.load()
+            // One-time migration authorized by the user: prefer short first audio on this phone.
+            // Mark only after saving so a failed write can be retried; later manual choices persist.
+            let startupMigration = "ReadoraMobile.fastSpeechDefault.v1"
+            if !UserDefaults.standard.bool(forKey: startupMigration) {
+                var speech = try await store.speechPreferences()
+                speech.cacheBeforePlayback = false
+                try await store.saveSpeechPreferences(speech)
+                UserDefaults.standard.set(true, forKey: startupMigration)
+            }
             preferences = try await store.readingPreferences()
             registry = try await store.aiModelRegistry()
             shelves = try await store.collections()
+            recentSpeech = try await store.speechHistory()
             loaded = true
         } catch { self.error = error.localizedDescription }
     }
@@ -124,11 +180,55 @@ final class MobileReader {
     var publication: EPUBPublication?
     var paragraphs: [String] = []
     var pdf: PDFDocument?
+    var pdfSelection: PDFSelection?
     var position: Int? = nil
     var textOffset = 0
     var loaded = false
     var error: String?
     var marks: [ReadingMark] = []
+    var selectionParagraph: Int?
+    var selectionRange = NSRange(location: 0, length: 0)
+    var pageNumber = 1
+    var pageCount = 0
+    var pageRequest: Int?
+    func addHighlight(color: HighlightColor = .gold, quote: String? = nil, paragraph: Int? = nil) async {
+        do {
+            if let pdf {
+                guard let selection = pdfSelection, pdf.allowsCommenting else { throw ReadingDataError.invalidMark }
+                for page in selection.pages {
+                    let rectangles = selection.selectionsByLine().filter { $0.pages.contains(page) }.compactMap { line -> PageRectangle? in
+                        let rect = line.bounds(for: page)
+                        guard !rect.isEmpty, !rect.isNull else { return nil }
+                        return PageRectangle(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height)
+                    }
+                    if !rectangles.isEmpty {
+                        let mark = ReadingMark(bookID: book.id, kind: .highlight, position: pdf.index(for: page), quote: selection.string ?? "", color: color, rectangles: rectangles)
+                        marks = try await store.saveMark(mark)
+                    }
+                }
+                return
+            }
+            let index = paragraph ?? position ?? 0
+            guard paragraphs.indices.contains(index) else { throw ReadingDataError.invalidMark }
+            let source = paragraphs[index] as NSString
+            let range: NSRange
+            if let quote, !quote.isEmpty {
+                range = source.range(of: quote)
+                guard range.location != NSNotFound else { throw ReadingDataError.invalidMark }
+            } else if selectionParagraph == index, selectionRange.length > 0, selectionRange.location >= 0,
+                      selectionRange.location <= source.length, selectionRange.length <= source.length - selectionRange.location {
+                range = selectionRange
+            } else {
+                guard let value = SpeechTextSegment.range(in: paragraphs[index], from: textOffset, maximumLength: 120) else { throw ReadingDataError.invalidMark }
+                range = value
+            }
+            let block = publication?.blocks.indices.contains(index) == true ? publication?.blocks[index] : nil
+            let mark = ReadingMark(bookID: book.id, kind: .highlight, position: index, resourceID: block?.resourceID,
+                paragraphIndex: block?.paragraphIndex, utf16Offset: range.location, utf16Length: range.length,
+                quote: source.substring(with: range), color: color)
+            marks = try await store.saveMark(mark)
+        } catch { self.error = error.localizedDescription }
+    }
     let speech = MobileSpeech()
     private var saveTask: Task<Void, Never>?
     init(book: Book, store: LibraryStore) { self.book = book; self.store = store }
@@ -168,6 +268,23 @@ final class MobileReader {
             loaded = true
             await saveProgress()
         } catch is CancellationError {} catch { self.error = error.localizedDescription }
+    }
+    func selectText(paragraph: Int, range: NSRange) {
+        guard paragraphs.indices.contains(paragraph) else { return }
+        if let valid = SpeechTextSegment.sourceSelection(range, in: paragraphs[paragraph]) {
+            selectionParagraph = paragraph; selectionRange = valid
+        } else if selectionParagraph == paragraph { selectionParagraph = nil; selectionRange = NSRange(location: 0, length: 0) }
+    }
+    func startSpeechFromSelection(paragraph: Int, range: NSRange) {
+        guard paragraphs.indices.contains(paragraph),
+              let valid = SpeechTextSegment.sourceSelection(range, in: paragraphs[paragraph]) else { return }
+        speech.start(paragraphs, from: paragraph, offset: valid.location)
+    }
+    func startSpeechFromReadingPosition(streaming: Bool = false) {
+        if let index = selectionParagraph, paragraphs.indices.contains(index), selectionRange.length > 0,
+           selectionRange.location >= 0, selectionRange.location < (paragraphs[index] as NSString).length {
+            speech.start(paragraphs, from: index, offset: selectionRange.location, streaming: streaming)
+        } else { speech.start(paragraphs, from: position ?? 0, offset: textOffset, streaming: streaming) }
     }
     func scheduleSave() {
         guard loaded else { return }

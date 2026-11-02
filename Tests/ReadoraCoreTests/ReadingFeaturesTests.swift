@@ -106,6 +106,10 @@ final class ReadingFeaturesTests: XCTestCase {
             return Double(lastAudible) / 48000
         }
         let normal = try audibleDuration(rate: 1), fast = try audibleDuration(rate: 8)
+        for rate in [2.0, 4.0] {
+            let duration = try audibleDuration(rate: rate)
+            XCTAssertEqual(duration, normal / rate, accuracy: 0.16, "Must retain full audio at \(rate)×")
+        }
         XCTAssertGreaterThan(normal, 1.8)
         XCTAssertGreaterThan(fast, 0.1)
         XCTAssertLessThan(fast, 0.5)

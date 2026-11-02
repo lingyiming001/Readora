@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -73,6 +73,12 @@
 		D337C66AECA27A586662C92D /* Sources/ReadoraiOS/MobileLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09EC1BA36C7BF54A1710B96C /* Sources/ReadoraiOS/MobileLibrary.swift */; };
 		D906ACBA4570D71003FBAA00 /* Sources/ReadoraMac/ReaderAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 533F491AA58685B5288BF09C /* Sources/ReadoraMac/ReaderAppearance.swift */; };
 		DFFE0EBA925ED7F2DA85ABB0 /* Sources/ReadoraMac/ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C803D0DD3AC4D674CA5ACF7 /* Sources/ReadoraMac/ReaderView.swift */; };
+		E01000000000000000000001 /* ReadoraKokoroRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E01000000000000000000002 /* ReadoraKokoroRuntime */; };
+		E01000000000000000000003 /* Resources/iOS/Kokoro in Resources */ = {isa = PBXBuildFile; fileRef = E01000000000000000000004 /* Resources/iOS/Kokoro */; };
+		E03000000000000000000001 /* ReadoraKokoroRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E03000000000000000000004 /* ReadoraKokoroRuntime */; };
+		E03000000000000000000002 /* Resources/iOS/Kokoro in Resources */ = {isa = PBXBuildFile; fileRef = E01000000000000000000004 /* Resources/iOS/Kokoro */; };
+		E04000000000000000000001 /* Sources/ReadoraMac/VoiceConversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC09DED4A7CEC681A7D9636 /* Sources/ReadoraMac/VoiceConversation.swift */; };
+		E05000000000000000000002 /* Sources/ReadoraiOS/MobileMCPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05000000000000000000001 /* Sources/ReadoraiOS/MobileMCPService.swift */; };
 		E26B3D87D05805FE99ABB45C /* Sources/ReadoraMac/PDFReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3CBA4181AA9203B0495F039 /* Sources/ReadoraMac/PDFReader.swift */; };
 		E55F3FF918F5F850EE0EFD6B /* Sources/ReadoraCore/AIConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0333FB7F1CA6D59613DBE06E /* Sources/ReadoraCore/AIConfiguration.swift */; };
 		E62083B6EE9A743F359132D7 /* Sources/ReadoraCore/AIAppAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100C9D2C1EA7666085617431 /* Sources/ReadoraCore/AIAppAgent.swift */; };
@@ -83,9 +89,6 @@
 		FDB9BEED4B75080703590CF2 /* Sources/ReadoraCore/AIAppCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA7BC3E08FE3EE022A795FD5 /* Sources/ReadoraCore/AIAppCommand.swift */; };
 		FED34B9EACBD94DD21AA29AC /* Sources/ReadoraCore/EPUBPublication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87D8C958FD4C30B119033223 /* Sources/ReadoraCore/EPUBPublication.swift */; };
 		FFC3BC5DED47477060844921 /* Sources/ReadoraMac/SelectableParagraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F97695EAD4A5483B13FB14 /* Sources/ReadoraMac/SelectableParagraph.swift */; };
-		E01000000000000000000001 /* ReadoraKokoroRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E01000000000000000000002; };
-		E01000000000000000000003 /* Kokoro in Resources */ = {isa = PBXBuildFile; fileRef = E01000000000000000000004; };
-		E02000000000000000000003 /* MeloTTS in Resources */ = {isa = PBXBuildFile; fileRef = E02000000000000000000004; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -205,6 +208,8 @@
 		CC21E9A3265C088A55B10A9D /* Sources/ReadoraiOS/MobileSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraiOS/MobileSettingsView.swift; sourceTree = "<group>"; };
 		CFC06470E669569A56F5549C /* Sources/ReadoraMac/MCPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraMac/MCPService.swift; sourceTree = "<group>"; };
 		D99174C7F49EEC60B3AAE04A /* Sources/ReadoraCore/EPUBXML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraCore/EPUBXML.swift; sourceTree = "<group>"; };
+		E01000000000000000000004 /* Resources/iOS/Kokoro */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/iOS/Kokoro; sourceTree = "<group>"; };
+		E05000000000000000000001 /* Sources/ReadoraiOS/MobileMCPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraiOS/MobileMCPService.swift; sourceTree = "<group>"; };
 		E3CBA4181AA9203B0495F039 /* Sources/ReadoraMac/PDFReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraMac/PDFReader.swift; sourceTree = "<group>"; };
 		E63C7E0DEF7D4B5ED439FB9E /* Sources/ReadoraMac/ReaderNavigationPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraMac/ReaderNavigationPanel.swift; sourceTree = "<group>"; };
 		E802D0BD43C12EC03CD421C8 /* Sources/ReadoraCore/AICredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraCore/AICredentialStore.swift; sourceTree = "<group>"; };
@@ -213,8 +218,6 @@
 		F050AD439CFCBEA4C3AC8AB1 /* Readora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Readora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA7BC3E08FE3EE022A795FD5 /* Sources/ReadoraCore/AIAppCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraCore/AIAppCommand.swift; sourceTree = "<group>"; };
 		FF1A42F288D7EB90FBA0AD96 /* Sources/ReadoraMac/AISettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/ReadoraMac/AISettingsView.swift; sourceTree = "<group>"; };
-		E01000000000000000000004 /* Kokoro */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/iOS/Kokoro; sourceTree = "<group>"; };
-		E02000000000000000000004 /* MeloTTS */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/iOS/MeloTTS; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -236,6 +239,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E03000000000000000000001 /* ReadoraKokoroRuntime in Frameworks */,
 				1042C25C6A2D1CC974A6A5B7 /* ReadoraCore.framework in Frameworks */,
 				908B702DB44CBE9B1818F4A5 /* ReadoraRendering.framework in Frameworks */,
 			);
@@ -355,8 +359,8 @@
 		B6D50B52887E4626ED4F5F2A /* ReadoraiOS */ = {
 			isa = PBXGroup;
 			children = (
-				E01000000000000000000004 /* Kokoro */,
-				E02000000000000000000004 /* MeloTTS */,
+				E05000000000000000000001 /* Sources/ReadoraiOS/MobileMCPService.swift */,
+				E01000000000000000000004 /* Resources/iOS/Kokoro */,
 				ED0E8DD64C6C9C446266686B /* Sources/ReadoraiOS/MobileAssistant.swift */,
 				357E2A52E981CF43AABCCDD6 /* Sources/ReadoraiOS/MobileImages.swift */,
 				09EC1BA36C7BF54A1710B96C /* Sources/ReadoraiOS/MobileLibrary.swift */,
@@ -365,7 +369,6 @@
 				52D444E0AC1E27E586FD6439 /* Sources/ReadoraiOS/MobileSpeech.swift */,
 				95B146B3D3E7C0BD33A4CF1E /* Sources/ReadoraiOS/ReadoraMobileApp.swift */,
 			);
-			packageProductDependencies = (E01000000000000000000002, );
 			name = ReadoraiOS;
 			sourceTree = "<group>";
 		};
@@ -519,6 +522,9 @@
 				539D0089B06CE809E9DB6649 /* PBXTargetDependency */,
 			);
 			name = ReadoraMac;
+			packageProductDependencies = (
+				E03000000000000000000004 /* ReadoraKokoroRuntime */,
+			);
 			productName = Readora;
 			productReference = F050AD439CFCBEA4C3AC8AB1 /* Readora.app */;
 			productType = "com.apple.product-type.application";
@@ -554,8 +560,10 @@
 				en,
 				Base,
 			);
-			packageReferences = (E01000000000000000000005, );
 			mainGroup = AA0596BBDB4DCC95D5D4F10C;
+			packageReferences = (
+				E01000000000000000000005 /* XCLocalSwiftPackageReference "Vendor/KokoroRuntime" */,
+			);
 			productRefGroup = AE7805B56D1DCAFAA071416F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -575,8 +583,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E01000000000000000000003 /* Kokoro in Resources */,
-				E02000000000000000000003 /* MeloTTS in Resources */,
+				E01000000000000000000003 /* Resources/iOS/Kokoro in Resources */,
 				7BC1AA96714BF37D5F31306A /* Resources/iOS/Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -585,6 +592,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E03000000000000000000002 /* Resources/iOS/Kokoro in Resources */,
 				BF1BE648F172071F676A979C /* Resources/Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -665,6 +673,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E05000000000000000000002 /* Sources/ReadoraiOS/MobileMCPService.swift in Sources */,
+				E04000000000000000000001 /* Sources/ReadoraMac/VoiceConversation.swift in Sources */,
 				6704AEF4F5F161E31EFD2B72 /* Sources/ReadoraiOS/MobileAssistant.swift in Sources */,
 				A50270F13F4137529EE86E21 /* Sources/ReadoraiOS/MobileImages.swift in Sources */,
 				D337C66AECA27A586662C92D /* Sources/ReadoraiOS/MobileLibrary.swift in Sources */,
@@ -1115,11 +1125,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
 /* Begin XCLocalSwiftPackageReference section */
-		E01000000000000000000005 = {isa = XCLocalSwiftPackageReference; relativePath = Vendor/KokoroRuntime; };
+		E01000000000000000000005 /* XCLocalSwiftPackageReference "Vendor/KokoroRuntime" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/KokoroRuntime;
+		};
 /* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
-		E01000000000000000000002 = {isa = XCSwiftPackageProductDependency; package = E01000000000000000000005; productName = ReadoraKokoroRuntime; };
+		E01000000000000000000002 /* ReadoraKokoroRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E01000000000000000000005 /* XCLocalSwiftPackageReference "Vendor/KokoroRuntime" */;
+			productName = ReadoraKokoroRuntime;
+		};
+		E03000000000000000000004 /* ReadoraKokoroRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E01000000000000000000005 /* XCLocalSwiftPackageReference "Vendor/KokoroRuntime" */;
+			productName = ReadoraKokoroRuntime;
+		};
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 244210E48437B6556980A702 /* Project object */;

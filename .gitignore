@@ -32,3 +32,6 @@ Resources/iOS/Kokoro/*
 Resources/iOS/MeloTTS/*
 !Resources/iOS/MeloTTS/.gitkeep
 Vendor/KokoroRuntime/.build/
+
+# Prepared local Qwen3-TTS Core ML weights
+Resources/iOS/QwenTTS/*

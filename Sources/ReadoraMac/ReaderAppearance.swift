@@ -70,45 +70,59 @@ struct ReaderAppearancePanel: View {
 struct SpeechSettingsView: View {
     @Bindable var model: AppModel
     @State private var rate = 1.0
-    @State private var maximum = 8.0
+    @State private var maximum = 2.0
     @State private var voice = ""
-    @State private var voiceLanguage = "zh"
+    @State private var dictionary = ""
+    @State private var cacheBeforePlayback = false
     @State private var highlight = true
-    @State private var voices: [AVSpeechSynthesisVoice] = []
     @State private var preview = SpeechPlayer()
     @State private var message: String?
     var body: some View {
         Form {
             Section("朗读声音") {
-                Picker("语言", selection: $voiceLanguage) {
-                    Text("中文").tag("zh"); Text("英语").tag("en"); Text("全部语言").tag("all")
-                }
                 Picker("音色", selection: $voice) {
-                    Text("自动 · 跟随书籍语言").tag("")
-                    ForEach(filteredVoices, id: \.identifier) { item in
-                        Text("\(item.name) · \(Locale(identifier: "zh-Hans").localizedString(forIdentifier: item.language) ?? item.language)").tag(item.identifier)
-                    }
+                    ForEach(NeuralSpeechVoice.all) { item in Text(item.title).tag(item.id) }
                 }
                 HStack {
                     Button(preview.isActive ? "停止试听" : "试听音色", systemImage: preview.isActive ? "stop.fill" : "speaker.wave.2") {
                         if preview.isActive { preview.stop() }
-                        else { preview.play(["你好，欢迎来到 Readora。让每一页，从容展开。Hello, enjoy your reading."], from: 0, rate: draft) { _, _ in } }
+                        else {
+                            if model.speech.isPlaying { model.speech.togglePause() }
+                            preview.play(["你好，欢迎来到 Readora。让每一页，从容展开。Hello, enjoy your reading."], from: 0, rate: draft) { _, _ in }
+                        }
                     }
                     Spacer()
-                    Button("刷新音色") { loadVoices() }
                 }
+                if preview.preparing { Label("正在准备离线声音…", systemImage: "hourglass").font(.caption) }
                 if let failure = preview.failure { Text(failure).font(.caption).foregroundStyle(.red) }
-                Text("显示本机已安装的系统音色。可在 macOS 系统设置的辅助功能中添加更多声音，再刷新此列表。")
+                Text("已内置离线音色，选择后可直接试听。")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("更自然的开源音色") {
-                Text("中文长文可试听 Qwen3-TTS、CosyVoice；轻量方案可了解 Kokoro。以下模型尚未内置到本机音色列表，需要单独部署推理服务。")
+            Section("离线模型") {
+                Text("轻量 Kokoro 支持中文和英文混读，完全在本机运行。可用读音词典纠正多音字，不会修改书籍原文。")
                     .font(.caption).foregroundStyle(.secondary)
-                HStack {
-                    Link("Qwen3-TTS", destination: URL(string: "https://github.com/QwenLM/Qwen3-TTS")!)
-                    Link("CosyVoice", destination: URL(string: "https://github.com/FunAudioLLM/CosyVoice")!)
-                    Link("Kokoro 中文", destination: URL(string: "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh")!)
+            }
+            Section("多音字纠正 · 本地词典") {
+                Text("每行填写一个词语及声调拼音，保存后对所有书籍生效。优先填写完整词语，避免单字覆盖其他读法。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("银行 = yin2 hang2\n行长 = hang2 zhang3\n重庆 = chong2 qing4")
+                    .font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
+                TextEditor(text: $dictionary).font(.body.monospaced()).frame(minHeight: 100)
+                    .accessibilityLabel("读音词典，每行词语等于带声调拼音")
+                Button("检查并试听词典") {
+                    do {
+                        let words = try PronunciationDictionary.parse(dictionary).keys.sorted()
+                        guard !words.isEmpty else { message = "请先添加一个词语"; return }
+                        if model.speech.isPlaying { model.speech.togglePause() }
+                        preview.play([words.joined(separator: "，") + "。"], from: 0, rate: draft) { _, _ in }
+                        message = "格式正确，共 \(words.count) 个词语；点击保存后生效"
+                    } catch { message = error.localizedDescription }
                 }
+            }
+            Section("高速流畅播放") {
+                Toggle("2× / 4× 先完整缓存剩余正文", isOn: $cacheBeforePlayback)
+                Text("首次需等待音频全部生成；完成后从本地音频连续播放，不会因为模型生成跟不上而停顿。缓存保存在本机，停止可取消生成。")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("朗读速度") {
                 HStack { Text("当前速度"); Spacer(); Text(String(format: "%.2f×", rate)).monospacedDigit() }
@@ -124,7 +138,7 @@ struct SpeechSettingsView: View {
                 HStack { Text("最高速度"); Spacer(); Text(String(format: "%.2f×", maximum)).monospacedDigit() }
                 Slider(value: $maximum, in: 0.5...8, step: 0.05).accessibilityLabel("最高朗读速度")
                     .onChange(of: maximum) { _, value in rate = min(rate, value); message = nil }
-                Text("支持 0.5–8 倍速。超过 2 倍使用保持音调的音频加速；不同音色的自然语速有所差异。")
+                Text("支持 0.5–8 倍速。正常语速生成完整音频后再保音调加速；不同音色的自然语速有所差异。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("阅读时") {
@@ -134,7 +148,7 @@ struct SpeechSettingsView: View {
             }
             Section {
                 HStack {
-                    Button("恢复默认值") { rate = 1; maximum = 8; voice = ""; highlight = true; message = nil }
+                    Button("恢复默认值") { rate = 1; maximum = 2; voice = NeuralSpeechVoice.defaultIdentifier; highlight = true; cacheBeforePlayback = true; message = nil }
                     Spacer()
                     Button("保存朗读设置") {
                         preview.stop()
@@ -146,29 +160,21 @@ struct SpeechSettingsView: View {
         }.readoraForm(model.preferences.theme)
             .task {
                 rate = model.speechPreferences.rate; maximum = model.speechPreferences.maximumRate
-                voice = model.speechPreferences.voiceIdentifier ?? ""
-                if let selected = AVSpeechSynthesisVoice(identifier: voice), !selected.language.hasPrefix("zh") { voiceLanguage = selected.language.hasPrefix("en") ? "en" : "all" }
+                voice = NeuralSpeechVoice.resolvedIdentifier(model.speechPreferences.voiceIdentifier)
+                cacheBeforePlayback = model.speechPreferences.cacheBeforePlayback
+                dictionary = model.speechPreferences.pronunciationDictionary
                 highlight = model.speechPreferences.highlightSpokenText
-                loadVoices()
             }
             .onDisappear { preview.stop() }
             .onChange(of: rate) { _, _ in message = nil }
             .onChange(of: voice) { _, _ in message = nil; preview.stop() }
+            .onChange(of: dictionary) { _, _ in message = nil; preview.stop() }
             .onChange(of: highlight) { _, _ in message = nil }
     }
     private var draft: SpeechPreferences {
-        SpeechPreferences(rate: min(rate, maximum), maximumRate: maximum, voiceIdentifier: voice.isEmpty ? nil : voice, highlightSpokenText: highlight)
+        SpeechPreferences(rate: min(rate, maximum), maximumRate: maximum, voiceIdentifier: voice.isEmpty ? nil : voice, highlightSpokenText: highlight, pronunciationDictionary: dictionary, cacheBeforePlayback: cacheBeforePlayback)
     }
-    private var filteredVoices: [AVSpeechSynthesisVoice] {
-        voices.filter { voiceLanguage == "all" || $0.language.hasPrefix(voiceLanguage) || $0.identifier == voice }
-    }
-    private func loadVoices() {
-        voices = AVSpeechSynthesisVoice.speechVoices().sorted {
-            if $0.language.hasPrefix("zh") != $1.language.hasPrefix("zh") { return $0.language.hasPrefix("zh") }
-            return ($0.language + $0.name).localizedStandardCompare($1.language + $1.name) == .orderedAscending
-        }
-        if !voice.isEmpty, !voices.contains(where: { $0.identifier == voice }) { voice = "" }
-    }
+
 }
 
 struct ApplicationThemeSettings: View {

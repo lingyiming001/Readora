@@ -1,8 +1,8 @@
 # Readora
 
-Readora 是面向 Mac、iPhone 的原生个人电子书阅读器产品设计，强调安静阅读、可靠的本地书库，以及阅读和系统朗读之间连续的上下文。未来扩展 iPadOS，保持共享领域模型与平台独立交互。
+Readora 是面向 Mac、iPhone 的原生个人电子书阅读器产品设计，强调安静阅读、可靠的本地书库，以及阅读和离线模型朗读之间连续的上下文。未来扩展 iPadOS，保持共享领域模型与平台独立交互。
 
-**当前状态：2026-10-18，macOS 原型 0.6.0，提供 Swift Package 原生应用、多模型 AI 助手与应用操作；已提供原生 macOS Xcode App 工程；已新增 iOS 17+ 手机阅读首版；真机签名安装、完整 MVP 和真机性能验证尚未完成。** 所有指标是验收目标，不是实测结果。现有 `Readora.png` 保留原样，未被定义为已批准的品牌或 UI 规范。
+**当前状态：2026-10-26，macOS 原型 0.6.0，提供 Swift Package 原生应用、多模型 AI 助手与应用操作；已提供原生 macOS Xcode App 工程；已新增 iOS 17+ 手机阅读首版；真机签名安装已完成，完整 MVP 和真机性能验证尚未完成。** 所有指标是验收目标，不是实测结果。现有 `Readora.png` 保留原样，未被定义为已批准的品牌或 UI 规范。
 
 ## 目标架构边界（完整产品设计）
 
@@ -10,7 +10,7 @@ Readora 是面向 Mac、iPhone 的原生个人电子书阅读器产品设计，�
 - Swift 6 工具链、SwiftUI 界面、必要的 AppKit/UIKit 桥接；部署基线与构建 SDK 分开管理。
 - EPUB：共享安全解析器、WKWebView 渲染；PDF：PDFKit；TXT：共享文本索引、TextKit 2 平台适配。
 - Core Data 本地持久化；后续通过 NSPersistentCloudKitContainer 镜像私有元数据；原始文件独立使用用户可选 iCloud Drive 文件传输。
-- AVSpeechSynthesizer 为首发语音引擎；iOS 音频会话与后台播放必须先通过真机门槛。
+- 朗读使用轻量 Kokoro，中英文混读、15 音色，资源约 198 MB；已移除 Melo、Qwen 与系统语音。模型随包安装，推理不联网。iOS 音频会话与后台播放需真机验证。
 - MVP 为本地完整闭环；同步、批注、全文搜索和高级分页分批交付，见功能规格。无 DRM 解密、云端内容上传、在线书城。
 
 ## 文档导航与实施顺序
@@ -44,7 +44,7 @@ MVP = 本地封闭测试；V1 = 首次公开商业发布；V1.1 = 文件同步�
 
 ## 在 iPhone 上使用
 
-打开 `Readora.xcodeproj`，选择 **ReadoraiOS → 你的 iPhone**；在该target的Signing & Capabilities选择自己的Team，按⌘R。手机首版支持EPUB/TXT/PDF导入阅读、进度/书签、主题/字号、系统朗读和AI阅读问答。Mac MCP、完整自动操作、分页/高亮与同步尚未移植。
+打开 `Readora.xcodeproj`，选择 **ReadoraiOS → 你的 iPhone**；在该target的Signing & Capabilities选择自己的Team，按⌘R。手机首版支持EPUB/TXT/PDF导入阅读、进度/书签、主题/字号、离线模型朗读和AI阅读问答。Mac MCP、完整自动操作、分页/高亮与同步尚未移植。
 
 已生成未签名真机Release归档，但没有签名的App不能直接安装。连接手机、信任电脑、登录Apple ID并设置Team后，由Xcode构建安装。详细步骤、产物与限制见[手机安装说明](deploy/ios/README.md)。
 
@@ -75,7 +75,7 @@ xcodebuild -project Readora.xcodeproj -scheme Readora -configuration Debug -dest
 ./scripts/run-macos.sh
 ```
 
-脚本构建 Swift Package、生成并本地签名 `deploy/Readora.app`，随后打开应用。可用 Xcode 打开 `Package.swift` 阅读和调试。当前版本默认支持200 MB以内的无加密重排EPUB 2/3、UTF-8/带BOM UTF-16 TXT和未加密PDF；支持书库搜索、EPUB书名/作者/封面、章节目录、正文图片、EPUB/TXT字号调整与系统朗读、阅读进度保存。该段描述macOS版本；iOS首版范围见下方，跨设备同步和自由文本笔记仍未完成。
+脚本构建 Swift Package、生成并本地签名 `deploy/Readora.app`，随后打开应用。可用 Xcode 打开 `Package.swift` 阅读和调试。当前版本默认支持200 MB以内的无加密重排EPUB 2/3、UTF-8/带BOM UTF-16 TXT和未加密PDF；支持书库搜索、EPUB书名/作者/封面、章节目录、正文图片、EPUB/TXT字号调整与离线模型朗读、阅读进度保存。该段描述macOS版本；iOS首版范围见下方，跨设备同步和自由文本笔记仍未完成。
 
 当前书库元数据暂用原子JSON存储，EPUB位置记录章节资源路径和段落索引，TXT/PDF保留段落/页索引；它们尚未达到文档中的Core Data、引用文本校验和跨设备定位架构。原文复制到应用支持目录，源文件不修改。本地数据位于 `~/Library/Application Support/Readora`。
 
@@ -91,7 +91,7 @@ CLANG_MODULE_CACHE_PATH=/tmp/readora-clang-cache swift test --disable-sandbox --
 
 ### EPUB 支持与边界
 
-当前采用安全解析后的原生 SwiftUI 段落排版，尚未使用目标方案中的 WKWebView。支持常见良构 XHTML 正文、spine 顺序、EPUB 3 nav/EPUB 2 NCX、标题层级、PNG/JPEG/GIF 静态图片、封面及系统朗读；书籍脚本不执行，远端资源不请求。复杂 CSS、嵌入字体、精确表格/数学排版、链接与脚注交互、固定版式、竖排、DRM/加密资源和 SVG 专属页面尚不支持。固定版式/加密包会拒绝导入；不完整 XHTML 返回可理解错误。
+当前采用安全解析后的原生 SwiftUI 段落排版，尚未使用目标方案中的 WKWebView。支持常见良构 XHTML 正文、spine 顺序、EPUB 3 nav/EPUB 2 NCX、标题层级、PNG/JPEG/GIF 静态图片、封面及离线模型朗读；书籍脚本不执行，远端资源不请求。复杂 CSS、嵌入字体、精确表格/数学排版、链接与脚注交互、固定版式、竖排、DRM/加密资源和 SVG 专属页面尚不支持。固定版式/加密包会拒绝导入；不完整 XHTML 返回可理解错误。
 
 导入上限默认200 MB，可在「Readora → 设置…」（⌘,）或侧栏「设置」中配置为1–2048 MB（每MB按1024×1024字节计算），点击保存后生效并在重启后保留；不影响已有书籍打开。设置控制EPUB/TXT/PDF原始文件大小，内容兼容性与解析安全限制独立生效：单ZIP条目64 MB、展开总量1 GB、10,000条目、解压超过8 MB的条目压缩比不超过250:1；单XML32 MB、嵌套128层、单XML节点10万、正文合计64 MB及50万段。插图改为按需读取，不再将全书图片存入解析缓存；安全校验仍保留。原文以1 MB分块复制并计算SHA-256，复制中持续检查大小；解析尽量使用内存映射。资源只在内存解包，不创建书内路径。解析缓存位于书库 `Cache/`，删除后可从原文重建；缓存版本随解析规则变更递增。
 
@@ -149,7 +149,7 @@ API Key输入框改为独占行、明确边框与最小宽度，提供显示/隐
 
 设置 → MCP 可启用本机服务并复制标准 stdio 客户端配置，让其他 AI 产品使用与应用内助手一致的操作工具；删除类仍需在 Readora 内确认。桥接程序随应用打包，不依赖额外运行时。
 
-AI 助手 → 语音聊天：中文/英文识别、多轮问答、可选识别后自动发送、系统音色朗读与打断；仅主动录音时使用麦克风。详见 [连接与使用说明](docs/MCP-and-Voice.md)。0.6.0 的 63 项无界面测试通过，打包后原生桥接冒烟检查通过；按用户要求不进行界面或麦克风测试。
+AI 助手 → 语音聊天：中文/英文识别、多轮问答、可选识别后自动发送、所选离线音色朗读与打断；仅主动录音时使用麦克风。详见 [连接与使用说明](docs/MCP-and-Voice.md)。0.6.0 的 63 项无界面测试通过，打包后原生桥接冒烟检查通过；按用户要求不进行界面或麦克风测试。
 
 ### 简化 AI 交流（2026-10-17）
 
@@ -160,3 +160,11 @@ AI 面板仅显示当前回复，历史不再铺在界面中；连续追问的�
 ### 工程现代化（2026-10-18）
 
 Package Tools 升级至6.4，显式使用Swift 6语言模式。macOS界面模块启用默认MainActor隔离和新版非隔离异步语义，后台RPC传输与PCM采集器显式保持非UI隔离。SwiftUI、Observation、Swift Concurrency仍是界面与并发基础，macOS 14运行基线及书库格式保留。详细边界见[技术栈](docs/06-Tech-Stack.md)。
+
+### 离线语音模型准备
+
+准备依赖：`pip install onnx==1.20.1 numpy==2.5.4`，然后运行 `python3 scripts/prepare-kokoro.py`。固定上游归档校验后生成 FP16 存储模型（CPU 仍用 FP32 计算），15 音色及双语前端资源约 198 MB。模型随包安装，推理完全离线。朗读设置新增可编辑、试听、持久保存的多音字词典，例如 `银行 = yin2 hang2`；保存后用于所有书籍，不修改原文。分句、预生成、重复句缓存和延迟释放改善首句与重播等待，详情见 [朗读架构](docs/13-TTS-Architecture.md)。
+
+### 2× / 4× 连续朗读
+
+已默认启用「先完整缓存剩余正文」：首次在本机准备音频，完成后连续读本地文件，避免手机生成速度追不上高速播放。手机缓存时保持应用前台，界面显示百分比，可随时停止；相同起点/音色/读音可复用缓存。设置中也可关闭，改用动态缓冲。长书首次准备会更久，并占用本机存储。

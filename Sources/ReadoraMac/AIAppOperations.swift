@@ -148,7 +148,7 @@ extension AppModel {
             case "maximumRate": updated = updated.capped(to: try number())
             case "voice":
                 let identifier = try text()
-                guard identifier == "auto" || AVSpeechSynthesisVoice(identifier: identifier) != nil else { throw fail("此音色未安装，请先查询list_voices。") }
+                guard identifier == "auto" || NeuralSpeechVoice.all.contains(where: { $0.id == identifier }) else { throw fail("此音色未安装，请先查询list_voices。") }
                 updated.voiceIdentifier = identifier == "auto" ? nil : identifier
             case "highlight": updated.highlightSpokenText = try flag()
             case "follow": followSpeech = try flag(); return "已修改跟随朗读。"
@@ -157,9 +157,7 @@ extension AppModel {
             try updated.validate(); try await store.saveSpeechPreferences(updated)
             speechPreferences = updated; speech.configure(updated)
         case .listVoices:
-            return try json(AVSpeechSynthesisVoice.speechVoices().filter { command.text == nil || $0.language.hasPrefix(command.text!) }.prefix(150).map {
-                ["id": $0.identifier, "name": $0.name, "language": $0.language]
-            })
+            return try json(NeuralSpeechVoice.all.map { ["id": $0.id, "name": $0.title, "language": "zh-CN/en"] })
         case .speak:
             try opened(); guard !paragraphs.isEmpty else { throw fail("当前书籍没有可朗读正文。") }
             startSpeech(from: position, offset: positionOffset)

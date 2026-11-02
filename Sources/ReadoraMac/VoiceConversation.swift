@@ -1,9 +1,10 @@
 import SwiftUI
+import ReadoraCore
 @preconcurrency import Speech
 @preconcurrency import AVFoundation
 
 @MainActor @Observable
-final class VoiceConversation: NSObject, AVSpeechSynthesizerDelegate {
+final class VoiceConversation: NSObject {
     var listening = false
     var authorizing = false
     var speaking = false
@@ -16,12 +17,16 @@ final class VoiceConversation: NSObject, AVSpeechSynthesizerDelegate {
     private var engine: AVAudioEngine?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var recognition: SFSpeechRecognitionTask?
-    private let synthesizer = AVSpeechSynthesizer()
-    private var currentReply: AVSpeechUtterance?
+    #if os(iOS)
+    private let replyPlayer = MobileSpeech()
+    #else
+    private let replyPlayer = SpeechPlayer()
+    #endif
+    private var replyMonitor: Task<Void, Never>?
     private var timer: Task<Void, Never>?
     private var finishing: Task<Void, Never>?
     private var generation = UUID()
-    override init() { super.init(); synthesizer.delegate = self }
+    override init() { super.init() }
     func start() async {
         stop(); error = nil; transcript = ""; authorizing = true
         let epoch = generation
@@ -33,6 +38,12 @@ final class VoiceConversation: NSObject, AVSpeechSynthesizerDelegate {
         authorizing = false
         guard allowed else { error = "请在系统设置的隐私与安全性中允许 Readora 使用麦克风。"; return }
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: locale)), recognizer.isAvailable else { error = "当前语言的语音识别暂不可用，请稍后重试或使用文字输入。"; return }
+        #if os(iOS)
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch { self.error = "无法启动录音：" + error.localizedDescription; return }
+        #endif
         let audio = AVAudioEngine(), input = audio.inputNode, format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { error = "没有可用的麦克风输入。"; return }
         let bufferRequest = SFSpeechAudioBufferRecognitionRequest()
@@ -77,6 +88,9 @@ final class VoiceConversation: NSObject, AVSpeechSynthesizerDelegate {
     private func stopMicrophone() {
         if let engine { engine.stop(); engine.inputNode.removeTap(onBus: 0) }
         engine = nil; listening = false
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
     func stop() {
         generation = UUID(); authorizing = false
@@ -87,18 +101,28 @@ final class VoiceConversation: NSObject, AVSpeechSynthesizerDelegate {
     }
     func speakReply(_ text: String, voice: String?) {
         stopReply(); guard readReplies, !text.isEmpty else { return }
-        let utterance = AVSpeechUtterance(string: String(text.prefix(12000)))
-        utterance.voice = voice.flatMap(AVSpeechSynthesisVoice.init(identifier:)) ?? AVSpeechSynthesisVoice(language: locale)
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-        currentReply = utterance; speaking = true; synthesizer.speak(utterance)
-    }
-    func stopReply() { currentReply = nil; synthesizer.stopSpeaking(at: .immediate); speaking = false }
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) { finishReply(ObjectIdentifier(utterance)) }
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) { finishReply(ObjectIdentifier(utterance)) }
-    nonisolated private func finishReply(_ id: ObjectIdentifier) {
-        Task { @MainActor [weak self] in
-            guard let self, let current = self.currentReply, ObjectIdentifier(current) == id else { return }
-            self.currentReply = nil; self.speaking = false
+        let preferences = SpeechPreferences(voiceIdentifier: NeuralSpeechVoice.resolvedIdentifier(voice))
+        #if os(iOS)
+        replyPlayer.configure(preferences, persistChoice: false)
+        replyPlayer.start([String(text.prefix(12000))], from: 0)
+        #else
+        replyPlayer.play([String(text.prefix(12000))], from: 0, rate: preferences) { _, _ in }
+        #endif
+        speaking = true
+        replyMonitor = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                #if os(iOS)
+                let active = self.replyPlayer.playing
+                let failure = self.replyPlayer.error
+                #else
+                let active = self.replyPlayer.isActive
+                let failure = self.replyPlayer.failure
+                #endif
+                if !active { self.speaking = false; if let failure { self.error = failure }; return }
+                do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
+            }
         }
     }
+    func stopReply() { replyMonitor?.cancel(); replyMonitor = nil; replyPlayer.stop(); speaking = false }
 }

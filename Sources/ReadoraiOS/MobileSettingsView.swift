@@ -4,6 +4,9 @@ import ReadoraCore
 struct MobileSettingsView: View {
     @Bindable var library: MobileLibrary
     @Environment(\.dismiss) private var dismiss
+    @State private var speech = MobileSpeech()
+    @State private var speechSettings = false
+    @State private var deleting: AIModelProfile?
     @State private var editing: AIModelProfile?
     @State private var limit = ImportSettings().maxBookSizeMB
     @State private var importStatus: String?
@@ -26,17 +29,39 @@ struct MobileSettingsView: View {
                     LabeledContent("行距", value: "\(Int(library.preferences.lineSpacing))")
                     Slider(value: $library.preferences.lineSpacing, in: 2...18, step: 1).accessibilityLabel("行距")
                 }
+                Section("朗读") {
+                    Button("音色、速度与高亮跟随", systemImage: "waveform") { speechSettings = true }
+                }
+                Section("MCP · 外部 AI 控制") {
+                    Toggle("启用手机 MCP", isOn: $library.mcp.enabled)
+                    Text("仅在应用前台提供局域网 HTTP 连接，使用独立访问令牌。请在可信网络使用；手机与Mac使用同一套应用操作工具，删除类仍需在手机确认。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if library.mcp.running {
+                        Text(library.mcp.endpoint).font(.caption.monospaced()).textSelection(.enabled)
+                        Button("复制 MCP 连接配置") { UIPasteboard.general.string = library.mcp.configuration }
+                    }
+                    if let error = library.mcp.error { Text(error).font(.caption).foregroundStyle(.red) }
+                }
                 Section("AI 模型") {
                     ForEach(library.registry.profiles) { profile in
                         Button { editing = profile } label: {
                             HStack { Text(profile.title); Spacer(); if profile.configuration.enabled { Image(systemName: "checkmark.circle.fill") } }
+                        }
+                        .contextMenu {
+                            Button(profile.configuration.enabled ? "停用" : "启用") {
+                                updateModels { next in if let index = next.profiles.firstIndex(where: { $0.id == profile.id }) { next.profiles[index].configuration.enabled.toggle() } }
+                            }
+                            Button("设为首选") {
+                                updateModels { next in if let index = next.profiles.firstIndex(where: { $0.id == profile.id }) { let value = next.profiles.remove(at: index); next.profiles.insert(value, at: 0) } }
+                            }
+                            Button("删除模型", role: .destructive) { deleting = profile }
                         }
                     }
                     Button("添加模型", systemImage: "plus") {
                         var configuration = AIConfiguration(); configuration.enabled = true
                         editing = AIModelProfile(configuration: configuration)
                     }.disabled(library.registry.profiles.count >= 30)
-                    Text("使用第一个启用的模型。手机端提供阅读问答；不执行 Mac 应用操作。").font(.caption).foregroundStyle(.secondary)
+                    Text("使用第一个启用的模型。支持阅读问答、书库整理、阅读导航和朗读控制；删除操作需要具体确认。").font(.caption).foregroundStyle(.secondary)
                 }
                 Section("导入大小上限") {
                     TextField("1–2048 MB", value: $limit, format: .number).keyboardType(.numberPad)
@@ -52,11 +77,27 @@ struct MobileSettingsView: View {
                     Text("手机和 Mac 书库独立保存，目前没有自动同步。可通过“文件”、AirDrop 或 iCloud Drive 选择书籍导入。").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            .modifier(MobileExternalApproval(library: library))
+            .onChange(of: library.mcp.enabled) { _, enabled in
+                UserDefaults.standard.set(enabled, forKey: "mobileMCPEnabled")
+                if enabled { Task { await library.startMCP() } } else { library.mcp.stop(); library.resolveExternal(false) }
+            }
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
-            .task { if let settings = try? await library.store.importSettings() { limit = settings.maxBookSizeMB } }
+            .sheet(isPresented: $speechSettings) { MobileSpeechSettings(speech: speech, store: library.store) }
+            .task { if let preferences = try? await library.store.speechPreferences() { speech.configure(preferences) }; if let settings = try? await library.store.importSettings() { limit = settings.maxBookSizeMB } }
             .onDisappear { Task { await library.saveAppearance() } }
+            .confirmationDialog("删除模型配置“\(deleting?.title ?? "")”？已保存的书籍保留。", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                Button("删除模型", role: .destructive) { let id = deleting?.id; deleting = nil; updateModels { next in next.profiles.removeAll { $0.id == id } } }
+            }
             .sheet(item: $editing) { profile in MobileModelEditor(profile: profile, library: library) }
+        }
+    }
+    private func updateModels(_ change: (inout AIModelRegistry) -> Void) {
+        var next = library.registry; change(&next)
+        Task {
+            do { try next.validate(); try await library.store.saveAIModelRegistry(next); library.registry = next }
+            catch { importStatus = error.localizedDescription }
         }
     }
 }

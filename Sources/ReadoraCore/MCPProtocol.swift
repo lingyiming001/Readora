@@ -48,3 +48,40 @@ public enum ReadoraMCPProtocol {
     private static func encode(_ value: [String: Any]) -> Data { (try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])) ?? Data() }
 }
 import CoreFoundation
+
+public enum MCPHTTPParseResult: Equatable, Sendable {
+    case incomplete, request(Data), rejected(Int)
+}
+/// Bounded, stateless Streamable HTTP envelope for the optional mobile MCP endpoint.
+public enum ReadoraMCPHTTP {
+    public static func parse(_ data: Data, token: String) -> MCPHTTPParseResult {
+        let separator = Data("\r\n\r\n".utf8)
+        guard let boundary = data.range(of: separator) else { return data.count > 8192 ? .rejected(431) : .incomplete }
+        guard boundary.lowerBound <= 8192,
+              let header = String(data: data[..<boundary.lowerBound], encoding: .utf8) else { return .rejected(431) }
+        let lines = header.components(separatedBy: "\r\n")
+        let first = (lines.first ?? "").split(separator: " ")
+        guard first.count == 3, first[2] == "HTTP/1.1" || first[2] == "HTTP/1.0" else { return .rejected(400) }
+        guard first[1] == "/mcp" else { return .rejected(404) }
+        guard first[0] == "POST" else { return .rejected(405) }
+        var fields: [String: String] = [:]
+        for line in lines.dropFirst() {
+            guard let colon = line.firstIndex(of: ":") else { return .rejected(400) }
+            let key = line[..<colon].trimmingCharacters(in: .whitespaces).lowercased()
+            guard !key.isEmpty, fields[key] == nil else { return .rejected(400) }
+            fields[key] = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+        }
+        guard fields["origin"] == nil else { return .rejected(403) }
+        guard fields["transfer-encoding"] == nil else { return .rejected(400) }
+        let actual = Array((fields["authorization"] ?? "").utf8), expected = Array(("Bearer " + token).utf8)
+        guard !token.isEmpty, actual.count == expected.count,
+              zip(actual, expected).reduce(UInt8(0), { $0 | ($1.0 ^ $1.1) }) == 0 else { return .rejected(401) }
+        guard fields["content-type"]?.lowercased().hasPrefix("application/json") == true else { return .rejected(415) }
+        guard let rawLength = fields["content-length"], !rawLength.isEmpty, rawLength.allSatisfy(\.isNumber), let length = Int(rawLength) else { return .rejected(400) }
+        guard length <= ReadoraMCPProtocol.maximumMessageSize else { return .rejected(413) }
+        let body = data[boundary.upperBound...]
+        guard body.count >= length else { return .incomplete }
+        guard body.count == length else { return .rejected(400) }
+        return .request(Data(body))
+    }
+}

@@ -16,6 +16,7 @@ struct ReaderView: View {
     @State private var pageDirection = 1
     @State private var dragOffset: CGFloat = 0
     @State private var speechPanel = false
+    @State private var floatingSpeechExpanded = false
     private var background: Color { Color(nsColor: ReaderTypography.background(model.preferences.theme)) }
     private var foreground: Color { Color(nsColor: ReaderTypography.textColor(model.preferences.theme)) }
     private var animation: Animation? { reduceMotion || !model.preferences.animateTransitions ? nil : .easeInOut(duration: 0.2) }
@@ -41,11 +42,69 @@ struct ReaderView: View {
             }
             playbackBar
         }.background(background).foregroundStyle(foreground)
+            .overlay(alignment: .bottomTrailing) {
+                if model.speech.isActive { floatingSpeech.padding(24) }
+            }
+            .overlay(alignment: .topTrailing) {
+                if speechPanel {
+                    ZStack(alignment: .topTrailing) {
+                        Color.clear.contentShape(Rectangle()).onTapGesture { speechPanel = false }
+                        speechControls
+                            .background(background, in: RoundedRectangle(cornerRadius: 18))
+                            .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.08)) }
+                            .shadow(color: .black.opacity(0.12), radius: 24, y: 10)
+                            .padding(.top, 74).padding(.trailing, 28)
+                    }
+                }
+            }
             .environment(\.colorScheme, model.preferences.theme == .night ? .dark : .light)
+            .onChange(of: model.speech.isActive) { _, active in if !active { floatingSpeechExpanded = false } }
             .onChange(of: model.pageRequest) { _, request in turnPage(to: request.index) }
             .onChange(of: model.jumpRequest) { _, request in jump(to: request.position, offset: request.offset) }
             .onChange(of: model.speech.failure) { _, failure in if let failure { model.error = failure } }
             .onChange(of: model.preferences.layout) { _, _ in restored = false }
+    }
+    private var floatingSpeech: some View {
+        VStack(alignment: .trailing, spacing: 10) {
+            if floatingSpeechExpanded {
+                VStack(spacing: 16) {
+                    HStack {
+                        Label(!model.speech.isPlaying ? "已暂停" : model.speech.preparing ? model.speech.preparationStatus : "正在朗读", systemImage: "waveform").font(.headline)
+                        Spacer()
+                        Button { model.speech.togglePause() } label: { Image(systemName: model.speech.isPlaying ? "pause.fill" : "play.fill") }
+                            .accessibilityLabel(model.speech.isPlaying ? "暂停朗读" : "继续朗读")
+                        Button { model.speech.stop() } label: { Image(systemName: "stop.circle") }.accessibilityLabel("结束朗读")
+                    }
+                    HStack {
+                        Button("回到朗读", systemImage: "location") {
+                            jump(to: model.speech.index, offset: model.speech.spokenRange.location)
+                        }
+                        Spacer()
+                        Button(String(format: "%.2f× · 音色", model.speechPreferences.rate)) { model.settingsSection = .speech; openSettings() }
+                    }
+                    HStack(spacing: 10) {
+                    Toggle("自动跟随", systemImage: "location", isOn: $model.followSpeech)
+                    Toggle("文字高亮", systemImage: "highlighter", isOn: Binding(get: { model.speechPreferences.highlightSpokenText }, set: { value in
+                        var preferences = model.speechPreferences; preferences.highlightSpokenText = value
+                        Task { _ = await model.saveSpeechPreferences(preferences) }
+                    }))
+                    }.toggleStyle(.button).controlSize(.regular)
+                }
+                .padding(18).frame(width: 300)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+                .shadow(color: .black.opacity(0.1), radius: 16, y: 4)
+                .transition(.scale(scale: 0.85, anchor: .bottomTrailing).combined(with: .opacity))
+            }
+            Button {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.85)) { floatingSpeechExpanded.toggle() }
+            } label: {
+                Image(systemName: floatingSpeechExpanded ? "chevron.down" : model.speech.isPlaying ? "waveform" : "pause.fill")
+                    .font(.system(size: 20, weight: .medium)).frame(width: 56, height: 56)
+                    .background(.regularMaterial, in: Circle())
+                    .overlay { Circle().strokeBorder(.primary.opacity(0.08), lineWidth: 1) }
+                    .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+            }.buttonStyle(.plain).accessibilityLabel(floatingSpeechExpanded ? "收起朗读控制" : "展开朗读控制")
+        }
     }
     private var toolbar: some View {
         ZStack {
@@ -74,26 +133,58 @@ struct ReaderView: View {
                         .popover(isPresented: $appearance, arrowEdge: .bottom) { ReaderAppearancePanel(model: model) }
                     Button { speechPanel.toggle() } label: { Image(systemName: "speaker.wave.2") }
                         .help("朗读控制").accessibilityLabel("朗读控制")
-                        .popover(isPresented: $speechPanel, arrowEdge: .bottom) {
-                            VStack(spacing: 18) {
-                                Button(model.speech.isPlaying ? "暂停朗读" : "开始或继续朗读", systemImage: model.speech.isPlaying ? "pause.fill" : "play.fill") { model.toggleSpeech() }
-                                    .disabled(book.format == "pdf" || model.paragraphs.isEmpty)
-                                if model.speech.isActive {
-                                    Button("停止朗读", systemImage: "stop.fill") { model.speech.stop() }
-                                    Toggle("跟随朗读位置", isOn: $model.followSpeech)
-                                }
-                                Toggle("高亮朗读位置", isOn: Binding(get: { model.speechPreferences.highlightSpokenText }, set: { value in
-                                    var preferences = model.speechPreferences; preferences.highlightSpokenText = value
-                                    Task { _ = await model.saveSpeechPreferences(preferences) }
-                                }))
-                                Button("音色、速度与上限…") { model.settingsSection = .speech; openSettings() }
-                            }.padding(24).frame(width: 240)
-                        }
+
                 }.padding(.horizontal, 20).padding(.vertical, 13).background(background, in: Capsule())
                     .shadow(color: .black.opacity(0.055), radius: 20, y: 8)
             }
         }.font(.system(size: 19)).buttonStyle(.plain)
             .padding(.horizontal, 28).padding(.top, 12).padding(.bottom, 18)
+    }
+    private var speechControls: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 10) {
+                Image(systemName: "waveform").foregroundStyle(.secondary)
+                Text("朗读").font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Text(String(format: "%.2f×", model.speechPreferences.rate))
+                    .font(.system(size: 12, weight: .medium, design: .rounded)).monospacedDigit().foregroundStyle(.secondary)
+            }
+            if let selection = model.speechSelection {
+                Button("从选区开始朗读", systemImage: "play.fill") { model.startSpeech(from: selection.index, offset: selection.offset) }
+            }
+            HStack(spacing: 10) {
+                Button { model.toggleSpeech() } label: {
+                    Label(model.speech.isPlaying ? "暂停朗读" : model.speech.isActive ? "继续朗读" : "开始朗读",
+                          systemImage: model.speech.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 13, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 11)
+                        .foregroundStyle(.white).background(LibraryPalette.accent(model.preferences.theme), in: RoundedRectangle(cornerRadius: 10))
+                }.buttonStyle(.plain).disabled(book.format == "pdf" || model.paragraphs.isEmpty)
+                if model.speech.isActive {
+                    Button { model.speech.stop() } label: {
+                        Image(systemName: "stop.fill").font(.system(size: 13)).frame(width: 40, height: 40)
+                            .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+                    }.buttonStyle(.plain).help("结束朗读").accessibilityLabel("结束朗读")
+                }
+            }
+            VStack(spacing: 14) {
+                Toggle("自动跟随", isOn: $model.followSpeech)
+                Toggle("文字高亮", isOn: Binding(get: { model.speechPreferences.highlightSpokenText }, set: { value in
+                    var preferences = model.speechPreferences; preferences.highlightSpokenText = value
+                    Task { _ = await model.saveSpeechPreferences(preferences) }
+                }))
+            }.toggleStyle(.switch).controlSize(.small).font(.system(size: 13)).frame(maxWidth: .infinity)
+            Divider()
+            Button {
+                speechPanel = false; model.settingsSection = .speech; openSettings()
+            } label: {
+                HStack {
+                    Label("朗读设置", systemImage: "slider.horizontal.3")
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+                }.font(.system(size: 13)).contentShape(Rectangle())
+            }.buttonStyle(.plain).help("音色、速度与上限")
+        }.padding(20).frame(width: 260).fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(.primary)
     }
     private var playbackBar: some View {
         HStack {
@@ -179,7 +270,10 @@ struct ReaderView: View {
                     catch is CancellationError {} catch { model.error = error.localizedDescription }
                 }
                 .onChange(of: model.speech.index) { _, index in
-                    if model.speech.isActive, model.followSpeech { moveToPage(containing: index, offset: 0) }
+                    if model.speech.isActive, model.followSpeech { moveToPage(containing: index, offset: model.speech.spokenRange.location) }
+                }
+                .onChange(of: model.speech.spokenRange) { _, range in
+                    if model.speech.isActive, model.followSpeech { moveToPage(containing: model.speech.index, offset: range.location) }
                 }
                 .focusable()
                 .onKeyPress(.leftArrow) { turnPage(to: pageIndex - 1); return .handled }

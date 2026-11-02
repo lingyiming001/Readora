@@ -5,8 +5,14 @@ import AppKit
 
 struct LibrarySidebar: View {
     @Bindable var model: AppModel
+    @State private var managingShelves = false
     @State private var newShelf = false
     @State private var shelfName = ""
+    @State private var editingShelf: BookCollection?
+    @State private var deletingShelf: BookCollection?
+    @State private var savingShelf = false
+    @State private var shelfError: String?
+    @FocusState private var shelfNameFocused: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
@@ -23,11 +29,33 @@ struct LibrarySidebar: View {
                     row("正在阅读", icon: "book", filter: .reading, count: model.activeBooks.filter { $0.lastOpened != nil && $0.isFinished != true }.count)
                     row("收藏", icon: "heart", filter: .favorites, count: model.activeBooks.filter { $0.isFavorite == true }.count)
                     row("已读完", icon: "checkmark.circle", filter: .finished, count: model.activeBooks.filter { $0.isFinished == true }.count)
-                    Text("我的书架").font(.caption2.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 22).padding(.bottom, 4)
+                    HStack {
+                        Text("我的书架").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(managingShelves ? "完成" : "管理") { managingShelves.toggle() }
+                            .font(.caption2.weight(.medium)).buttonStyle(.plain)
+                            .foregroundStyle(managingShelves ? Color.primary : Color.secondary)
+                            .accessibilityLabel(managingShelves ? "完成书架管理" : "管理书架")
+                    }.padding(.top, 22).padding(.bottom, 4)
                     ForEach(model.collections) { shelf in
-                        row(shelf.title, icon: "rectangle.stack", filter: .collection(shelf.id), count: model.activeBooks.filter { $0.collectionIDs?.contains(shelf.id) == true }.count)
+                        HStack(spacing: 0) {
+                        row(shelf.title, icon: "rectangle.stack", filter: .collection(shelf.id), count: model.activeBooks.filter { $0.collectionIDs?.contains(shelf.id) == true }.count, showCount: !managingShelves)
+                        if managingShelves {
+                            HStack(spacing: 4) {
+                                Button { editingShelf = shelf; shelfName = shelf.title; shelfError = nil; newShelf = true } label: {
+                                    Image(systemName: "pencil").frame(width: 26, height: 28).contentShape(RoundedRectangle(cornerRadius: 6))
+                                }.help("编辑书架名称").accessibilityLabel("编辑书架“\(shelf.title)”")
+                                Button { deletingShelf = shelf } label: {
+                                    Image(systemName: "trash").frame(width: 26, height: 28).contentShape(RoundedRectangle(cornerRadius: 6))
+                                }.help("删除书架，保留书籍").accessibilityLabel("删除书架“\(shelf.title)”")
+                            }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(.secondary).padding(.trailing, 6)
+                        }
+                        }.contextMenu {
+                            Button("编辑书架名称") { editingShelf = shelf; shelfName = shelf.title; shelfError = nil; newShelf = true }
+                            Button("删除书架", role: .destructive) { deletingShelf = shelf }
+                        }
                     }
-                    Button("新建书架", systemImage: "plus") { shelfName = ""; newShelf = true }
+                    Button("新建书架", systemImage: "plus") { editingShelf = nil; shelfName = ""; shelfError = nil; newShelf = true }
                         .buttonStyle(.plain).foregroundStyle(.secondary).padding(.horizontal, 6).padding(.vertical, 7)
                     Divider().padding(.vertical, 16)
                     row("回收站", icon: "trash", filter: .trash, count: model.books.filter { $0.trashedAt != nil }.count)
@@ -40,18 +68,68 @@ struct LibrarySidebar: View {
                 Text("本地书库").font(.caption2).foregroundStyle(.secondary)
             }.buttonStyle(.plain).padding(20)
         }.background(LibraryPalette.canvas(model.preferences.theme))
-        .alert("新建书架", isPresented: $newShelf) {
-            TextField("书架名称", text: $shelfName)
-            Button("取消", role: .cancel) {}
-            Button("创建") { Task { await model.addCollection(shelfName) } }.disabled(shelfName.trimmingCharacters(in: .whitespaces).isEmpty)
-        } message: { Text("为喜欢的书，留一处专属位置。") }
+        .sheet(isPresented: $newShelf) {
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(spacing: 14) {
+                    Image(systemName: "books.vertical").font(.title2).frame(width: 48, height: 48)
+                        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(editingShelf == nil ? "新建书架" : "编辑书架").font(.title2.weight(.semibold))
+                        Text("为喜欢的书，留一处专属位置。").font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 9) {
+                    Text("书架名称").font(.subheadline.weight(.medium))
+                    TextField("例如：文学、历史、待读", text: $shelfName).textFieldStyle(.plain)
+                        .padding(13).background(.background, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(.primary.opacity(0.12)) }
+                        .focused($shelfNameFocused).onSubmit(saveShelf)
+                }
+                if let shelfError { Text(shelfError).font(.caption).foregroundStyle(.red) }
+                HStack {
+                    Spacer()
+                    Button("取消", role: .cancel) { newShelf = false }.keyboardShortcut(.cancelAction)
+                    Button(editingShelf == nil ? "创建书架" : "保存修改", action: saveShelf)
+                        .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                        .disabled(savingShelf || shelfName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }.controlSize(.large)
+            }.padding(28).frame(width: 420).disabled(savingShelf)
+                .onAppear { shelfNameFocused = true }.interactiveDismissDisabled(savingShelf)
+        }
+        .confirmationDialog("删除书架“\(deletingShelf?.title ?? "")”？书籍和阅读进度仍保留。", isPresented: Binding(get: { deletingShelf != nil }, set: { if !$0 { deletingShelf = nil } }), titleVisibility: .visible) {
+            Button("删除书架", role: .destructive) {
+                guard let shelf = deletingShelf else { return }; deletingShelf = nil
+                Task {
+                    do {
+                        model.collections = try await model.store.deleteCollection(id: shelf.id)
+                        model.books = try await model.store.load()
+                        if model.libraryFilter == .collection(shelf.id) { model.showLibrary(.all) }
+                    } catch { model.error = error.localizedDescription }
+                }
+            }
+            Button("取消", role: .cancel) { deletingShelf = nil }
+        }
     }
-    private func row(_ title: String, icon: String, filter: LibraryFilter, count: Int) -> some View {
+    private func saveShelf() {
+        guard !savingShelf, !shelfName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        savingShelf = true; shelfError = nil
+        let name = shelfName, id = editingShelf?.id
+        Task {
+            defer { savingShelf = false }
+            do {
+                if let id { model.collections = try await model.store.renameCollection(id: id, title: name) }
+                else { model.collections = try await model.store.addCollection(title: name) }
+                newShelf = false
+            } catch { shelfError = error.localizedDescription }
+        }
+    }
+
+    private func row(_ title: String, icon: String, filter: LibraryFilter, count: Int, showCount: Bool = true) -> some View {
         Button { model.showLibrary(filter) } label: {
             HStack {
                 Label(title, systemImage: icon)
                 Spacer()
-                Text("\(count)").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                if showCount { Text("\(count)").font(.caption).foregroundStyle(.secondary).monospacedDigit() }
             }.padding(.vertical, 8).padding(.horizontal, 10).contentShape(Rectangle())
                 .background(model.libraryFilter == filter && model.current == nil ? LibraryPalette.accent(model.preferences.theme).opacity(0.10) : .clear, in: RoundedRectangle(cornerRadius: 7))
         }.buttonStyle(.plain).accessibilityLabel("\(title)，\(count) 本")

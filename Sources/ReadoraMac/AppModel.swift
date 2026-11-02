@@ -199,14 +199,11 @@ final class AppModel {
     }
 
     func selectForSpeech(index: Int, range: NSRange) {
-        if paragraphs.indices.contains(index) {
-            let source = paragraphs[index] as NSString
-            if range.location >= 0, range.location <= source.length, range.length <= source.length - range.location {
-                selectedAIText = String(source.substring(with: range).prefix(6000))
-            }
-        }
-        speechSelection = (index, range.location)
-        if speech.isActive { startSpeech(from: index, offset: range.location) }
+        guard paragraphs.indices.contains(index),
+              let valid = SpeechTextSegment.sourceSelection(range, in: paragraphs[index]) else { return }
+        selectedAIText = String((paragraphs[index] as NSString).substring(with: valid).prefix(6000))
+        speechSelection = (index, valid.location)
+        // Dragging selection must not restart speech or scroll the text under the selection handles.
     }
 
     func loadFeatures() async {

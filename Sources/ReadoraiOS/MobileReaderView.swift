@@ -25,7 +25,7 @@ struct MobileReaderView: View {
                 if let error = reader.error { ContentUnavailableView("无法打开书籍", systemImage: "exclamationmark.triangle", description: Text(error)) }
                 else { ProgressView("正在打开…") }
             } else if let pdf = reader.pdf {
-                MobilePDFView(document: pdf, paged: library.preferences.layout == .pages, position: Binding(get: { reader.position ?? 0 }, set: { reader.position = $0 }))
+                MobilePDFView(document: pdf, paged: library.preferences.layout == .pages, marks: reader.marks, onSelection: { reader.pdfSelection = $0 }, position: Binding(get: { reader.position ?? 0 }, set: { reader.position = $0 }))
             } else if library.preferences.layout == .pages {
                 MobilePagedReader(reader: reader, library: library)
             } else {
@@ -42,16 +42,13 @@ struct MobileReaderView: View {
                                         preferences: library.preferences,
                                         spokenRange: reader.speech.playing && reader.speech.spokenParagraph == index ? reader.speech.spokenRange : nil,
                                         highlight: reader.speech.preferences.highlightSpokenText,
-                                        follow: followSpeech, locationRequest: speechLocationRequest)
+                                        follow: followSpeech, locationRequest: speechLocationRequest,
+                                        marks: reader.marks.filter { $0.kind == .highlight && $0.position == index },
+                                        onRead: { reader.startSpeechFromSelection(paragraph: index, range: $0) },
+                                        onAI: { excerpt = String(reader.paragraphs[index].prefix(6000)); assistant = true },
+                                        onHighlight: { color in Task { await reader.addHighlight(color: color, paragraph: index) } },
+                                        onSelection: { reader.selectText(paragraph: index, range: $0) })
                                         .frame(maxWidth: .infinity, alignment: .leading)
-                                        .contextMenu {
-                                            Button("询问 AI", systemImage: "sparkles") {
-                                                excerpt = String(reader.paragraphs[index].prefix(6000)); assistant = true
-                                            }
-                                            Button("从这里朗读", systemImage: "speaker.wave.2") {
-                                                reader.speech.start(reader.paragraphs, from: index)
-                                            }
-                                        }
                                 }
                             }.id(index)
                         }
@@ -61,6 +58,7 @@ struct MobileReaderView: View {
                 .background(library.background)
             }
         }
+        .modifier(MobileExternalApproval(library: library))
         .overlay { Color.black.opacity(1 - library.preferences.brightness).allowsHitTesting(false).accessibilityHidden(true) }
         .navigationTitle(reader.book.title).navigationBarTitleDisplayMode(.inline)
         .background(library.background)
@@ -68,25 +66,29 @@ struct MobileReaderView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("目录与书签", systemImage: "list.bullet") { navigation = true }
-                    Button("添加书签", systemImage: "bookmark") { Task { await reader.addBookmark() } }
                     Button("主题与设置", systemImage: "textformat.size") { appearance = true }
                     Button("询问 AI", systemImage: "sparkles") { excerpt = reader.currentText; assistant = true }
                     if reader.pdf == nil {
-                        Button("朗读设置 ·速度与音色", systemImage: "slider.horizontal.3") { speechSettings = true }
+                        Button("朗读设置", systemImage: "slider.horizontal.3") { speechSettings = true }
                         Button(reader.speech.playing ? "停止朗读" : "开始朗读", systemImage: "speaker.wave.2") {
                             if reader.speech.playing { reader.speech.stop() }
-                            else { reader.speech.start(reader.paragraphs, from: reader.position ?? 0, offset: reader.textOffset) }
+                            else { reader.startSpeechFromReadingPosition() }
                         }
                     }
                 } label: { Image(systemName: "ellipsis.circle") }
                 .accessibilityLabel("阅读菜单").disabled(!reader.loaded)
             }
         }
-        .safeAreaInset(edge: .bottom) {
+        .overlay(alignment: .bottomTrailing) {
             if reader.loaded && reader.speech.playing {
-                MobileSpeechBar(speech: reader.speech, follow: $followSpeech, locate: locateSpeech, settings: { speechSettings = true })
-                    .padding(.horizontal, 14).padding(.bottom, 8)
-            } else if reader.loaded && reader.pdf != nil {
+                GeometryReader { geometry in
+                    MobileSpeechBubble(speech: reader.speech, follow: $followSpeech, locate: locateSpeech, settings: { speechSettings = true }, availableHeight: geometry.size.height)
+                        .padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if reader.loaded && reader.pdf != nil {
                 Text("页 \(min((reader.position ?? 0) + 1, reader.count)) / \(reader.count)")
                     .font(.caption2).foregroundStyle(.secondary).padding(10)
             }
@@ -97,6 +99,7 @@ struct MobileReaderView: View {
                 reader.textOffset = range.location; reader.position = index
             }
             await reader.load()
+            library.currentReader = reader
             if reader.loaded { _ = try? await library.store.updateDocumentInfo(id: reader.book.id, count: reader.count) }
             #if DEBUG
             if reader.loaded, ProcessInfo.processInfo.environment["READORA_SPEECH_SMOKE"] == "1" {
@@ -104,6 +107,8 @@ struct MobileReaderView: View {
             }
             #endif
         }
+        .onChange(of: reader.speech.playing) { _, active in if active { Task { await library.recordSpeech(reader.book.id) } } }
+        .onChange(of: library.requestedPanel) { _, _ in if !assistant { consumeReaderRequest() } }
         .onChange(of: followSpeech) { _, enabled in if enabled { locateSpeech() } }
         .onChange(of: reader.speech.preferences.highlightSpokenText) { _, _ in
             let preferences = reader.speech.preferences
@@ -114,11 +119,26 @@ struct MobileReaderView: View {
         }
         .onChange(of: reader.position) { _, _ in reader.scheduleSave() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { Task { await reader.saveProgress() } } }
-        .onDisappear { reader.finish(); Task { await reader.saveProgress(); await library.refresh() } }
+        .onDisappear { if library.currentReader === reader { library.currentReader = nil }; reader.finish(); Task { await reader.saveProgress(); await library.refresh() } }
         .sheet(isPresented: $speechSettings) { MobileSpeechSettings(speech: reader.speech, store: library.store) }
         .onChange(of: reader.textOffset) { _, _ in reader.scheduleSave() }
+        .safeAreaInset(edge: .bottom) {
+            if reader.pdf == nil, reader.selectionParagraph != nil, reader.selectionRange.length > 0 {
+                HStack(spacing: 12) {
+                    Label("已选中文字", systemImage: "text.cursor").font(.subheadline).foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    Button("开始朗读", systemImage: "play.fill") { reader.startSpeechFromReadingPosition() }
+                        .buttonStyle(.borderedProminent)
+                    Button {
+                        reader.selectionParagraph = nil; reader.selectionRange = NSRange(location: 0, length: 0)
+                    } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                    .accessibilityLabel("关闭选区朗读操作")
+                }
+                .padding(.horizontal, 16).padding(.vertical, 8).background(.regularMaterial)
+            }
+        }
         .sheet(isPresented: $appearance) { MobileAppearancePanel(library: library) }
-        .sheet(isPresented: $assistant) { MobileAssistant(library: library, excerpt: excerpt, currentBookID: reader.book.id) }
+        .sheet(isPresented: $assistant, onDismiss: consumeReaderRequest) { MobileAssistant(library: library, excerpt: excerpt, currentBookID: reader.book.id) }
         .sheet(isPresented: $navigation) {
             NavigationStack {
                 List {
@@ -130,10 +150,17 @@ struct MobileReaderView: View {
                         }
                     }
                     Section("书签") {
+                        Button("添加当前页书签", systemImage: "bookmark.badge.plus") { Task { await reader.addBookmark() } }
                         if reader.marks.filter({ $0.kind == .bookmark }).isEmpty { Text("还没有书签").foregroundStyle(.secondary) }
                         ForEach(reader.marks.filter { $0.kind == .bookmark }) { mark in
                             Button(mark.quote.isEmpty ? "位置 \(mark.position + 1)" : mark.quote) { jump(to: mark.position, offset: mark.utf16Offset) }
                                 .swipeActions { Button("删除", role: .destructive) { Task { await reader.removeBookmark(mark) } } }
+                        }
+                    }
+                    Section("文字高亮") {
+                        ForEach(reader.marks.filter { $0.kind == .highlight }) { mark in
+                            Button(mark.quote) { jump(to: mark.position, offset: mark.utf16Offset) }
+                                .swipeActions { Button("移除", role: .destructive) { Task { await reader.removeBookmark(mark) } } }
                         }
                     }
                     if reader.count > 1 {
@@ -149,13 +176,18 @@ struct MobileReaderView: View {
             Button("好") { reader.error = nil; reader.speech.error = nil }
         } message: { Text(reader.error ?? reader.speech.error ?? "") }
     }
+    private func consumeReaderRequest() {
+        if library.requestedPanel == "navigation" { navigation = true; library.requestedPanel = nil }
+        else if library.requestedPanel == "appearance" { appearance = true; library.requestedPanel = nil }
+        else if library.requestedPanel == "speech" { speechSettings = true; library.requestedPanel = nil }
+    }
     private func locateSpeech() {
         guard reader.speech.playing, let paragraph = reader.speech.spokenParagraph else { return }
         reader.textOffset = reader.speech.spokenRange.location
         reader.position = paragraph
         speechLocationRequest += 1
     }
-    private func jump(to index: Int, offset: Int = 0) { reader.speech.stop(); reader.textOffset = offset; reader.position = TextContent.clampedPosition(index, count: reader.count); navigation = false }
+    private func jump(to index: Int, offset: Int = 0) { reader.selectionParagraph = nil; reader.selectionRange = NSRange(location: 0, length: 0); reader.speech.stop(); reader.textOffset = offset; reader.position = TextContent.clampedPosition(index, count: reader.count); navigation = false }
 
 }
 
@@ -167,11 +199,16 @@ private struct MobileScrollText: UIViewRepresentable {
     let highlight: Bool
     let follow: Bool
     let locationRequest: Int
+    let marks: [ReadingMark]
+    var onRead: ((NSRange) -> Void)? = nil
+    var onAI: (() -> Void)? = nil
+    var onHighlight: ((HighlightColor) -> Void)? = nil
+    let onSelection: (NSRange) -> Void
     func makeUIView(context: Context) -> TextView {
         let view = TextView()
         view.isScrollEnabled = false; view.isEditable = false; view.isSelectable = true
         view.textContainerInset = .zero; view.textContainer.lineFragmentPadding = 0
-        view.backgroundColor = .clear; view.adjustsFontForContentSizeCategory = false
+        view.backgroundColor = .clear; view.adjustsFontForContentSizeCategory = false; view.delegate = view
         return view
     }
     func updateUIView(_ view: TextView, context: Context) {
@@ -180,9 +217,23 @@ private struct MobileScrollText: UIViewRepresentable {
         attributes[.font] = UIFont(name: CTFontCopyPostScriptName(font) as String, size: CTFontGetSize(font)) ?? UIFont.systemFont(ofSize: preferences.fontSize)
         attributes[.foregroundColor] = preferences.theme == .night ? UIColor(white: 0.9, alpha: 1) : UIColor(white: 0.09, alpha: 1)
         let value = NSMutableAttributedString(string: text, attributes: attributes)
+        view.onSelection = onSelection; view.onRead = onRead; view.onAI = onAI; view.onHighlight = onHighlight
+        for mark in marks {
+            if let range = SpeechTextSegment.localIntersection(NSRange(location: mark.utf16Offset, length: mark.utf16Length), in: NSRange(location: 0, length: value.length)) {
+                let color: UIColor = mark.color == .mint ? .systemGreen : mark.color == .rose ? .systemPink : .systemYellow
+                value.addAttribute(.backgroundColor, value: color.withAlphaComponent(0.22), range: range)
+            }
+        }
         let range = spokenRange.flatMap { SpeechTextSegment.localIntersection($0, in: NSRange(location: 0, length: value.length)) }
         if highlight, let range { value.addAttribute(.backgroundColor, value: UIColor.systemYellow.withAlphaComponent(0.3), range: range) }
-        if view.attributedText != value { view.attributedText = value }
+        if view.attributedText != value {
+            let selection = view.selectedRange
+            let sameText = view.text == value.string
+            view.updating = true
+            view.attributedText = value
+            if sameText, selection.location != NSNotFound, NSMaxRange(selection) <= value.length { view.selectedRange = selection }
+            view.updating = false
+        }
         let requested = view.locationRequest != locationRequest
         view.locationRequest = locationRequest
         if let range, (follow || requested), view.lastRange != range || requested {
@@ -196,7 +247,29 @@ private struct MobileScrollText: UIViewRepresentable {
         guard let width = proposal.width, width > 0 else { return nil }
         return uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
     }
-    final class TextView: UITextView {
+    final class TextView: UITextView, UITextViewDelegate {
+        var onSelection: ((NSRange) -> Void)?
+        var onRead: ((NSRange) -> Void)?
+        var onAI: (() -> Void)?
+        var onHighlight: ((HighlightColor) -> Void)?
+        var updating = false
+        func textView(_ textView: UITextView, editMenuForTextIn range: NSRange, suggestedActions: [UIMenuElement]) -> UIMenu? {
+            var actions = suggestedActions
+            if let valid = SpeechTextSegment.sourceSelection(range, in: textView.text ?? ""), let read = onRead {
+                actions.insert(UIAction(title: "开始朗读", image: UIImage(systemName: "play.fill")) { _ in read(valid) }, at: 0)
+            }
+            if let ai = onAI { actions.append(UIAction(title: "询问 AI") { _ in ai() }) }
+            if let highlight = onHighlight {
+                actions.append(UIMenu(title: "高亮文字", children: HighlightColor.allCases.map { color in
+                    UIAction(title: color.title) { _ in highlight(color) }
+                }))
+            }
+            return UIMenu(children: actions)
+        }
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            guard !updating, textView.isFirstResponder else { return }
+            onSelection?(textView.selectedRange)
+        }
         var locationRequest = 0
         var lastRange: NSRange?
         var requestedRange: NSRange?
@@ -207,7 +280,7 @@ private struct MobileScrollText: UIViewRepresentable {
             }
         }
         func reveal(_ range: NSRange) {
-            guard window != nil, requestedRange == range, NSMaxRange(range) <= textStorage.length else { return }
+            guard !(isFirstResponder && selectedRange.length > 0), window != nil, requestedRange == range, NSMaxRange(range) <= textStorage.length else { return }
             layoutManager.ensureLayout(for: textContainer)
             let glyphs = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
             let rect = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
@@ -223,72 +296,165 @@ private struct MobileScrollText: UIViewRepresentable {
     }
 }
 
+private struct MobileSpeechBubble: View {
+    @Bindable var speech: MobileSpeech
+    @Binding var follow: Bool
+    let locate: () -> Void
+    let settings: () -> Void
+    @State private var expanded = true
+    let availableHeight: CGFloat
+    @State private var controlHeight: CGFloat = 56
+    private var maximumLift: CGFloat { max(0, availableHeight - controlHeight - 32) }
+    @State private var lift: CGFloat = 0
+    @GestureState private var drag: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private func toggleExpanded() {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.9)) { expanded.toggle() }
+    }
+    var body: some View {
+        Group {
+            if expanded {
+                MobileSpeechBar(speech: speech, follow: $follow, locate: locate, settings: settings, collapse: toggleExpanded)
+                    .frame(maxWidth: 350)
+                    .transition(.scale(scale: 0.95, anchor: .bottomTrailing).combined(with: .opacity))
+            } else {
+                Button(action: toggleExpanded) {
+                    HStack(spacing: 9) {
+                        if speech.preparing { ProgressView().controlSize(.small) }
+                        else { Image(systemName: speech.paused ? "pause.fill" : "waveform").foregroundStyle(Color.accentColor) }
+                        Text(speech.paused ? "已暂停" : speech.preparing ? "准备中" : "朗读中")
+                            .font(.system(size: 13, weight: .medium))
+                        Image(systemName: "chevron.up").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16).frame(minHeight: 48)
+                    .background(.regularMaterial, in: Capsule())
+                    .overlay { Capsule().strokeBorder(.primary.opacity(0.08), lineWidth: 0.5) }
+                    .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+                }.buttonStyle(.plain).accessibilityLabel("展开朗读控制")
+            }
+        }
+        .simultaneousGesture(DragGesture(minimumDistance: 18)
+            .updating($drag) { value, state, _ in state = value.translation.height }
+            .onEnded { value in lift = min(0, max(-maximumLift, lift + value.translation.height)) })
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { controlHeight = $0 }
+        .offset(y: min(0, max(-maximumLift, lift + drag)))
+    }
+}
+
 private struct MobileSpeechBar: View {
     @Bindable var speech: MobileSpeech
     @Binding var follow: Bool
     let locate: () -> Void
     let settings: () -> Void
+    let collapse: () -> Void
+    private var title: String { speech.paused ? "已暂停" : speech.preparing ? "准备朗读" : "正在朗读" }
+    private var detail: String { speech.preparing ? speech.preparationStatus : speech.voiceTitle }
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 5) {
-                        Circle().fill(speech.paused ? Color.secondary : Color.accentColor).frame(width: 5, height: 5)
-                        Text(speech.paused ? "已暂停" : speech.preparing ? "正在准备声音" : "正在朗读")
-                        Text("·").foregroundStyle(.tertiary)
-                        Text(speech.engineChoice == .system ? "系统音色" : speech.engineChoice.title)
-                    }.font(.caption2.weight(.medium)).foregroundStyle(.secondary)
-                    Text(speech.spokenPreview).font(.subheadline.weight(.medium)).lineLimit(1)
-                }.frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12).fill(Color.accentColor.opacity(0.1))
+                    if speech.preparing && !speech.paused {
+                        ProgressView().controlSize(.small).tint(.accentColor)
+                    } else {
+                        Image(systemName: "waveform").font(.system(size: 17, weight: .medium)).foregroundStyle(Color.accentColor)
+                    }
+                }.frame(width: 38, height: 42).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.primary)
+                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                }.frame(maxWidth: .infinity, alignment: .leading).layoutPriority(1)
                 Button(action: settings) {
-                    Text(String(format: "%.2f×", speech.preferences.rate))
-                        .font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(.primary)
-                        .padding(.horizontal, 10).frame(height: 34)
-                        .background(.primary.opacity(0.045), in: Capsule())
+                    Text(String(format: "%g×", speech.preferences.rate))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .padding(.horizontal, 10).frame(minHeight: 44)
+                        .background(.primary.opacity(0.04), in: Capsule())
                 }.accessibilityLabel("朗读速度与音色设置")
                 Button { speech.togglePause() } label: {
                     Image(systemName: speech.paused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 17, weight: .semibold)).foregroundStyle(.background)
+                        .font(.system(size: 16, weight: .semibold)).foregroundStyle(Color(uiColor: .systemBackground))
                         .frame(width: 44, height: 44).background(.primary, in: Circle())
                 }.accessibilityLabel(speech.paused ? "继续朗读" : "暂停朗读")
+            }
+            .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 10)
+            if let progress = speech.preparationProgress {
+                VStack(alignment: .leading, spacing: 8) {
+                    ProgressView(value: progress).tint(.accentColor)
+                    HStack {
+                        Text("缓存完成后播放").font(.system(size: 11)).foregroundStyle(.secondary)
+                        Spacer(minLength: 4)
+                        if speech.canPlayImmediately {
+                            Button("开始朗读") { speech.playImmediately() }
+                                .font(.system(size: 12, weight: .semibold)).frame(minHeight: 32)
+                                .accessibilityHint("跳过完整缓存等待，后续可能需要缓冲")
+                        }
+                    }
+                }.padding(.horizontal, 14).padding(.bottom, 8)
+            }
+            Rectangle().fill(.primary.opacity(0.06)).frame(height: 0.5).padding(.horizontal, 14)
+            HStack(spacing: 4) {
+                action("定位", icon: "location", active: false, action: locate)
+                action("跟随", icon: "location.fill", active: follow) { follow.toggle() }
+                action("高亮", icon: "highlighter", active: speech.preferences.highlightSpokenText) { speech.preferences.highlightSpokenText.toggle() }
                 Menu {
-                    Button("音色与速度", systemImage: "slider.horizontal.3", action: settings)
-                    Button("结束朗读", systemImage: "stop.circle", role: .destructive) { speech.stop() }
+                    Button("朗读设置", systemImage: "slider.horizontal.3", action: settings)
+                    Button(speech.preparing ? "取消准备" : "结束朗读", systemImage: "stop.circle", role: .destructive) { speech.stop() }
                 } label: {
-                    Image(systemName: "ellipsis").font(.body.weight(.medium)).foregroundStyle(.secondary)
-                        .frame(width: 24, height: 44)
+                    Image(systemName: "ellipsis").font(.system(size: 15, weight: .medium)).frame(width: 44, height: 44)
                 }.accessibilityLabel("更多朗读操作")
+                Button(action: collapse) {
+                    Image(systemName: "chevron.down").font(.system(size: 12, weight: .semibold)).frame(width: 44, height: 44)
+                }.accessibilityLabel("收起朗读控制")
             }
-            Rectangle().fill(.primary.opacity(0.06)).frame(height: 0.5)
-            HStack(spacing: 0) {
-                action("回到朗读", icon: "location", active: false, action: locate)
-                Divider().frame(height: 14)
-                action("自动跟随", icon: "location.fill", active: follow) { follow.toggle() }
-                Divider().frame(height: 14)
-                action("文字高亮", icon: "highlighter", active: speech.preferences.highlightSpokenText) { speech.preferences.highlightSpokenText.toggle() }
-            }
+            .foregroundStyle(.secondary).padding(.horizontal, 8).padding(.vertical, 3)
         }
-        .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
-        .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(.primary.opacity(0.06), lineWidth: 0.5) }
-        .shadow(color: .black.opacity(0.07), radius: 18, y: 5)
+        .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.97), in: RoundedRectangle(cornerRadius: 22))
+        .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(.primary.opacity(0.07), lineWidth: 0.5) }
+        .shadow(color: .black.opacity(0.08), radius: 16, y: 5)
         .buttonStyle(.plain)
     }
     private func action(_ title: String, icon: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: icon).font(.system(size: 11, weight: .medium))
+            HStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: 12, weight: .medium))
                 Text(title).font(.system(size: 11, weight: .medium))
-                if title != "回到朗读" { Circle().fill(active ? Color.accentColor : Color.secondary.opacity(0.3)).frame(width: 4, height: 4) }
             }
-            .foregroundStyle(active ? Color.primary : Color.secondary)
-            .frame(maxWidth: .infinity, minHeight: 32)
+            .foregroundStyle(active ? Color.accentColor : Color.secondary)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .contentShape(Rectangle())
         }
-        .accessibilityLabel(title)
-        .accessibilityValue(title == "回到朗读" ? "" : active ? "已开启" : "已关闭")
+        .accessibilityLabel(title == "定位" ? "回到朗读位置" : title == "跟随" ? "自动跟随" : "文字高亮")
+        .accessibilityValue(title == "定位" ? "" : active ? "已开启" : "已关闭")
     }
 }
+
+#if DEBUG
+// Self-authored layout fixture, no access to the user's books or model inference.
+struct MobileSpeechPanelPreview: View {
+    @State private var speech = MobileSpeech()
+    @State private var follow = true
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Color(uiColor: .systemBackground).ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 22) {
+                Text("阅读，让文字有了声音。").font(.system(size: 30, weight: .medium))
+                Text("阳光穿过窗前的树叶，落在翻开的书页上。我们沿着文字慢慢前行，在故事里看见不同的世界。")
+                    .font(.system(size: 27)).lineSpacing(12)
+                Spacer()
+                Text("19 / 122 · 15%").font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+            }.padding(24)
+            MobileSpeechBubble(speech: speech, follow: $follow, locate: {}, settings: {}, availableHeight: 700)
+                .padding(16).padding(.bottom, 30)
+        }
+        .task {
+            speech.playing = true
+            speech.preparing = ProcessInfo.processInfo.environment["READORA_PANEL_STATE"] != "playing"
+            speech.preferences.rate = 2
+        }
+    }
+}
+#endif
 
 struct MobileIllustration: View {
     let book: Book
@@ -308,6 +474,8 @@ struct MobileIllustration: View {
 struct MobilePDFView: UIViewRepresentable {
     let document: PDFDocument
     let paged: Bool
+    let marks: [ReadingMark]
+    let onSelection: (PDFSelection?) -> Void
     @Binding var position: Int
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> PDFView {
@@ -329,13 +497,36 @@ struct MobilePDFView: UIViewRepresentable {
             view.displayDirection = paged ? .horizontal : .vertical
         }
         if let page = document.page(at: position), view.currentPage !== page { view.go(to: page) }
+        if context.coordinator.lastMarks != marks {
+            for (page, annotation) in context.coordinator.annotations { page.removeAnnotation(annotation) }
+            context.coordinator.annotations = []
+            for mark in marks where mark.kind == .highlight {
+                guard let page = document.page(at: mark.position) else { continue }
+                for rectangle in mark.rectangles ?? [] {
+                    let bounds = CGRect(x: rectangle.x, y: rectangle.y, width: rectangle.width, height: rectangle.height).intersection(page.bounds(for: .cropBox))
+                    guard !bounds.isNull, !bounds.isEmpty else { continue }
+                    let annotation = PDFAnnotation(bounds: bounds, forType: .highlight, withProperties: nil)
+                    annotation.color = (mark.color == .mint ? UIColor.systemGreen : mark.color == .rose ? UIColor.systemPink : UIColor.systemYellow).withAlphaComponent(0.35)
+                    page.addAnnotation(annotation); context.coordinator.annotations.append((page, annotation))
+                }
+            }
+            context.coordinator.lastMarks = marks
+        }
     }
     static func dismantleUIView(_ view: PDFView, coordinator: Coordinator) { NotificationCenter.default.removeObserver(coordinator) }
     final class Coordinator: NSObject {
         var parent: MobilePDFView
+        var lastMarks: [ReadingMark] = []
+        var annotations: [(PDFPage, PDFAnnotation)] = []
         init(_ parent: MobilePDFView) { self.parent = parent }
         func observe(_ view: PDFView) {
             NotificationCenter.default.addObserver(self, selector: #selector(changed(_:)), name: .PDFViewPageChanged, object: view)
+            NotificationCenter.default.addObserver(self, selector: #selector(selectionChanged(_:)), name: .PDFViewSelectionChanged, object: view)
+        }
+        @objc func selectionChanged(_ note: Notification) {
+            guard let view = note.object as? PDFView else { return }
+            let selection = view.currentSelection
+            Task { @MainActor [weak self] in self?.parent.onSelection(selection) }
         }
         @objc func changed(_ note: Notification) {
             guard let view = note.object as? PDFView, let page = view.currentPage else { return }
@@ -347,54 +538,55 @@ struct MobilePDFView: UIViewRepresentable {
     }
 }
 
-private struct MobileSpeechSettings: View {
+struct MobileSpeechSettings: View {
     let speech: MobileSpeech
     let store: LibraryStore
     @Environment(\.dismiss) private var dismiss
-    @State private var draft = SpeechPreferences(maximumRate: 2)
+    @AppStorage("mobileFollowSpeech") private var followSpeech = true
+    @State private var draft = SpeechPreferences(maximumRate: 2, cacheBeforePlayback: false)
     @State private var preview = MobileSpeech()
     @State private var draftEngine = MobileSpeechEngine.kokoro
     @State private var draftKokoroVoice = MobileKokoroVoice.female054
-    @State private var draftMeloVoice = MobileMeloVoice.bilingualZh
-    @State private var language = "zh-CN"
     @State private var error: String?
-    private var allVoices: [AVSpeechSynthesisVoice] { MobileSpeech.recommendedVoices }
-    private var languages: [String] {
-        Set(allVoices.map(\.language)).sorted {
-            if $0.hasPrefix("zh") != $1.hasPrefix("zh") { return $0.hasPrefix("zh") }
-            return languageName($0) < languageName($1)
-        }
-    }
-    private var voices: [AVSpeechSynthesisVoice] { allVoices.filter { $0.language == language } }
-    private func languageName(_ code: String) -> String {
-        Locale(identifier: "zh_CN").localizedString(forIdentifier: code) ?? code
-    }
-    private func detail(_ voice: AVSpeechSynthesisVoice) -> String {
-        let quality = voice.quality == .premium ? "优质版" : voice.quality == .enhanced ? "增强版" : "标准版（未安装高质量版）"
-        let gender = voice.gender == .female ? "女声" : voice.gender == .male ? "男声" : ""
-        return [languageName(voice.language), gender, quality].filter { !$0.isEmpty }.joined(separator: " · ")
-    }
     var body: some View {
         NavigationStack {
             Form {
                 Section("朗读引擎") {
-                    Picker("引擎", selection: $draftEngine) {
-                        ForEach(MobileSpeechEngine.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }.pickerStyle(.segmented)
                     if draftEngine == .kokoro {
                         Picker("普通话音色", selection: $draftKokoroVoice) {
                             ForEach(MobileKokoroVoice.allCases) { Text($0.title).tag($0) }
                         }
-                        Text(MobileSpeech.kokoroInstalled ? "Kokoro v1.1 中文模型在手机本机运行，支持中英混读，正文不会发送到服务器。首次准备需要稍候；高亮以实际播放的短句为单位。" : "Kokoro模型尚未准备。请运行项目模型准备脚本并重新安装，或选择其他引擎。")
+                        Text(MobileSpeech.kokoroInstalled ? "Kokoro v1.1 中文模型在手机本机运行，支持中英混读，正文不会发送到服务器。首次准备需要稍候；高亮以实际播放的短句为单位。" : "Kokoro模型尚未准备。请运行项目模型准备脚本并重新安装，。")
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    if draftEngine == .melo {
-                        Picker("Melo 音色", selection: $draftMeloVoice) {
-                            ForEach(MobileMeloVoice.allCases) { Text($0.title).tag($0) }
-                        }
-                        Text(MobileSpeech.meloInstalled ? "MeloTTS 中文模型（sherpa-onnx vits-melo-tts-zh_en）本机运行，中英混读、采样率 44.1kHz。官方中文模型仅提供一个说话人，所以 Melo 引擎目前是一个音色；多音色可选 Kokoro 引擎。" : "MeloTTS 模型尚未准备。请运行 scripts/prepare-melotts.py 并重新安装，或选择其他引擎。")
-                            .font(.caption).foregroundStyle(.secondary)
+                }
+                Section("多音字纠正 · 本地词典") {
+                    Text("每行一个词语，保存后对所有书籍生效。请优先填写完整词语，避免单字覆盖其他读法。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text("银行 = yin2 hang2\n行长 = hang2 zhang3\n重庆 = chong2 qing4")
+                        .font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
+                    TextEditor(text: $draft.pronunciationDictionary).font(.body.monospaced()).frame(minHeight: 120)
+                        .autocorrectionDisabled().textInputAutocapitalization(.never)
+                        .accessibilityLabel("读音词典，每行词语等于带声调拼音")
+                    Button("检查并试听词典") {
+                        do {
+                            let words = try PronunciationDictionary.parse(draft.pronunciationDictionary).keys.sorted()
+                            guard !words.isEmpty else { error = "请先添加一个词语"; return }
+                            if speech.playing && !speech.paused { speech.togglePause() }
+                            preview.configure(draft, engine: draftEngine, voice: draftKokoroVoice, persistChoice: false)
+                            preview.start([words.joined(separator: "，") + "。"], from: 0)
+                            error = nil
+                        } catch { self.error = error.localizedDescription }
                     }
+                }
+                Section("朗读跟随") {
+                    Toggle("高亮正在朗读的文字", isOn: $draft.highlightSpokenText)
+                    Toggle("自动跟随朗读位置", isOn: $followSpeech)
+                }
+                Section("高速流畅播放") {
+                    Toggle("2× / 4× 先完整缓存剩余正文", isOn: $draft.cacheBeforePlayback)
+                    Text("默认关闭，优先快速出声，后续可能需要缓冲。打开后先生成全部剩余正文，等待时间随正文增长；生成时请保持应用前台，完成后可锁屏朗读。")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("朗读速度") {
                     Text(String(format: "%.2f×", draft.rate)).monospacedDigit()
@@ -403,50 +595,16 @@ private struct MobileSpeechSettings: View {
                         Text(String(format: "最大速度 %.2f×", draft.maximumRate))
                     }
                     Button("恢复默认上限 2×") { draft.maximumRate = 2 }
-                    Text("默认上限2×，可自定义至8×。超过2×采用保音调加速，速度越高越难辨清；不同音色的自然语速有所差异。保存后从当前段落应用，暂停状态保持暂停。")
+                    Text("默认上限2×，可自定义至8×。先正常语速生成，再保音调加速，速度越高越难辨清；不同音色的自然语速有所差异。保存后从当前段落应用，暂停状态保持暂停。")
                         .font(.caption).foregroundStyle(.secondary)
-                }
-                if draftEngine == .system {
-                Section("精选音色") {
-                    Picker("语言与地区", selection: $language) {
-                        ForEach(languages, id: \.self) { Text(languageName($0)).tag($0) }
-                    }
-                    Button {
-                        draft.voiceIdentifier = nil
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("推荐普通话")
-                                Text(MobileSpeech.preferredVoice.map { $0.name + " · " + detail($0) } ?? "系统默认中文音色")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if draft.voiceIdentifier == nil { Image(systemName: "checkmark") }
-                        }
-                    }.foregroundStyle(.primary)
-                    ForEach(voices, id: \.identifier) { voice in
-                        Button { draft.voiceIdentifier = voice.identifier } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(voice.name)
-                                    Text(detail(voice)).font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if draft.voiceIdentifier == voice.identifier { Image(systemName: "checkmark") }
-                            }
-                        }.foregroundStyle(.primary)
-                    }
-                    Text("试听会暂停正在朗读的内容，可返回阅读页继续。每个地区只保留已安装音色中最高质量等级的最多3款，没有高质量版时仅留1款标准备用音色，并去除趣味音效；音质等级由系统提供。若只显示标准版，可到iPhone设置 → 辅助功能 → 朗读内容（或阅读与朗读）→ 声音，下载增强版或优质版后重新打开本页。")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
                 }
                 Section {
                     Button(preview.playing ? "停止试听" : "试听所选音色", systemImage: preview.playing ? "stop.circle" : "play.circle") {
                         if preview.playing { preview.stop() }
                         else {
                             if speech.playing && !speech.paused { speech.togglePause() }
-                            preview.configure(draft, engine: draftEngine, voice: draftKokoroVoice, meloVoice: draftMeloVoice, persistChoice: false)
-                            let language = draftEngine != .system ? "zh" : draft.voiceIdentifier.flatMap { AVSpeechSynthesisVoice(identifier: $0)?.language } ?? "zh"
+                            preview.configure(draft, engine: draftEngine, voice: draftKokoroVoice, persistChoice: false)
+                            let language = "zh"
                             let text = language.hasPrefix("zh") ? "欢迎使用朗读。翻开一本书，让文字的声音陪伴你的阅读时光。" : "Welcome to Readora. Open a book and enjoy a clear, comfortable reading voice."
                             preview.start([text], from: 0)
                         }
@@ -463,24 +621,26 @@ private struct MobileSpeechSettings: View {
                         Task {
                             do {
                                 preview.stop()
-                                try await store.saveSpeechPreferences(draft)
+                                var saved = draft
+                                if draftEngine == .kokoro { saved.voiceIdentifier = "kokoro:\(draftKokoroVoice.rawValue)" }
+                                try await store.saveSpeechPreferences(saved)
                                 UserDefaults.standard.set(true, forKey: "mobileSpeechMaximumConfigured")
-                                speech.configure(draft, engine: draftEngine, voice: draftKokoroVoice, meloVoice: draftMeloVoice); dismiss()
+                                speech.configure(saved, engine: draftEngine, voice: draftKokoroVoice); dismiss()
                             } catch { self.error = error.localizedDescription }
                         }
                     }
                 }
             }
             .onChange(of: draft.maximumRate) { _, maximum in draft.rate = min(draft.rate, maximum) }
-            .onChange(of: draftEngine) { _, _ in preview.stop() }
+            .onChange(of: draftEngine) { _, engine in
+                preview.stop()
+            }
             .onChange(of: draftKokoroVoice) { _, _ in preview.stop() }
-            .onChange(of: draftMeloVoice) { _, _ in preview.stop() }
             .onChange(of: draft.voiceIdentifier) { _, _ in preview.stop() }
+            .onChange(of: draft.pronunciationDictionary) { _, _ in preview.stop() }
             .onChange(of: draft.rate) { _, _ in preview.stop() }
             .onAppear {
-                draft = speech.preferences; draftEngine = speech.engineChoice; draftKokoroVoice = speech.kokoroVoice; draftMeloVoice = speech.meloVoice
-                if let voice = draft.voiceIdentifier.flatMap({ AVSpeechSynthesisVoice(identifier: $0) }) { language = voice.language }
-                else { language = MobileSpeech.preferredVoice?.language ?? languages.first ?? "zh-CN" }
+                draft = speech.preferences; draftEngine = speech.engineChoice; draftKokoroVoice = speech.kokoroVoice
             }
             .onDisappear { preview.stop() }
         }
@@ -510,7 +670,9 @@ private struct MobilePagedReader: View {
                                 MobileIllustration(book: reader.book, path: path, store: library.store)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity).padding(24)
                             } else {
-                                MobilePageText(page: page, paragraphs: reader.paragraphs, headings: headingIndices, preferences: library.preferences, spokenParagraph: reader.speech.playing && reader.speech.preferences.highlightSpokenText ? reader.speech.spokenParagraph : nil, spokenRange: reader.speech.spokenRange)
+                                MobilePageText(page: page, paragraphs: reader.paragraphs, headings: headingIndices, preferences: library.preferences, marks: reader.marks.filter { $0.kind == .highlight }, spokenParagraph: reader.speech.playing && reader.speech.preferences.highlightSpokenText ? reader.speech.spokenParagraph : nil, spokenRange: reader.speech.spokenRange,
+                                    onSelection: { reader.selectText(paragraph: $0, range: $1) },
+                                    onRead: { reader.startSpeechFromSelection(paragraph: $0, range: $1) })
                             }
                         }.background(library.background))
                     }
@@ -539,10 +701,16 @@ private struct MobilePagedReader: View {
                     let result = try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
                     try Task.checkCancellation()
                     selection = result.firstIndex { $0.contains(reader.position ?? 0, offset: reader.textOffset) } ?? 0
-                    pages = result; paginationID = UUID(); failure = nil; paginating = false
+                    pages = result; reader.pageCount = result.count; reader.pageNumber = selection + 1; paginationID = UUID(); failure = nil; paginating = false
                 } catch is CancellationError {} catch { failure = error.localizedDescription; paginating = false }
             }
+            .onChange(of: reader.pageRequest) { _, request in
+                if let request, pages.indices.contains(request) { selection = request }
+                reader.pageRequest = nil
+            }
             .onChange(of: selection) { _, index in
+                reader.selectionParagraph = nil; reader.selectionRange = NSRange(location: 0, length: 0)
+                reader.pageNumber = index + 1
                 guard pages.indices.contains(index),
                       !pages[index].contains(reader.position ?? 0, offset: reader.textOffset) else { return }
                 reader.textOffset = pages[index].offset
@@ -638,23 +806,73 @@ private struct MobilePageText: UIViewRepresentable {
     let paragraphs: [String]
     let headings: Set<Int>
     let preferences: ReadingPreferences
+    let marks: [ReadingMark]
     let spokenParagraph: Int?
     let spokenRange: NSRange
+    let onSelection: (Int, NSRange) -> Void
+    let onRead: (Int, NSRange) -> Void
     func makeUIView(context: Context) -> Drawing { Drawing() }
     func updateUIView(_ view: Drawing, context: Context) {
         view.page = page; view.paragraphs = paragraphs; view.headings = headings; view.preferences = preferences
+        view.marks = marks
         view.spokenParagraph = spokenParagraph; view.spokenRange = spokenRange
         view.backgroundColor = .clear; view.isOpaque = false
         view.accessibilityLabel = page.slices.map { (paragraphs[$0.paragraph] as NSString).substring(with: $0.range) }.joined(separator: "\n")
-        view.isAccessibilityElement = true; view.setNeedsDisplay()
+        view.isAccessibilityElement = false
+        view.configureSelections(onSelection: onSelection, onRead: onRead)
+        view.setNeedsDisplay(); view.setNeedsLayout()
     }
     final class Drawing: UIView {
         var page = MobilePage(slices: [], imageIndex: nil)
         var paragraphs: [String] = []
         var headings: Set<Int> = []
         var preferences = ReadingPreferences()
+        var marks: [ReadingMark] = []
         var spokenParagraph: Int?
         var spokenRange = NSRange(location: 0, length: 0)
+        var selectors: [MobileScrollText.TextView] = []
+        func configureSelections(onSelection: @escaping (Int, NSRange) -> Void, onRead: @escaping (Int, NSRange) -> Void) {
+            while selectors.count > page.slices.count { selectors.removeLast().removeFromSuperview() }
+            while selectors.count < page.slices.count {
+                let view = MobileScrollText.TextView()
+                view.isEditable = false; view.isSelectable = true; view.isScrollEnabled = false
+                view.backgroundColor = .clear; view.textContainerInset = .zero
+                view.textContainer.lineFragmentPadding = 0; view.delegate = view
+                view.tintColor = .systemBlue
+                selectors.append(view); addSubview(view)
+            }
+            for (index, slice) in page.slices.enumerated() {
+                let view = selectors[index]
+                let text = (paragraphs[slice.paragraph] as NSString).substring(with: slice.range)
+                var attributes = MobilePagination.attributes(preferences, heading: headings.contains(slice.paragraph))
+                let font = attributes[.font] as! CTFont
+                attributes[.font] = UIFont(name: CTFontCopyPostScriptName(font) as String, size: CTFontGetSize(font)) ?? UIFont.systemFont(ofSize: preferences.fontSize)
+                attributes[.foregroundColor] = UIColor.clear
+                let value = NSAttributedString(string: text, attributes: attributes)
+                if view.attributedText != value {
+                    let old = view.selectedRange; let same = view.text == text
+                    view.updating = true; view.attributedText = value
+                    if same, old.location != NSNotFound, NSMaxRange(old) <= value.length { view.selectedRange = old }
+                    view.updating = false
+                }
+                view.accessibilityLabel = text
+                view.onSelection = { range in
+                    if let source = SpeechTextSegment.sourceSelection(range, in: text, sourceOffset: slice.range.location) { onSelection(slice.paragraph, source) }
+                    else { onSelection(slice.paragraph, NSRange(location: 0, length: 0)) }
+                }
+                view.onRead = { range in
+                    if let source = SpeechTextSegment.sourceSelection(range, in: text, sourceOffset: slice.range.location) { onRead(slice.paragraph, source) }
+                }
+            }
+        }
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            var y = 20.0
+            for (index, slice) in page.slices.enumerated() where index < selectors.count {
+                selectors[index].frame = CGRect(x: 24, y: y, width: max(0, bounds.width - 48), height: slice.height)
+                y += slice.height + preferences.paragraphSpacing
+            }
+        }
         override func draw(_ rect: CGRect) {
             guard let context = UIGraphicsGetCurrentContext() else { return }
             var y = 20.0
@@ -667,12 +885,18 @@ private struct MobilePageText: UIViewRepresentable {
                 context.translateBy(x: 24, y: y + slice.height)
                 context.scaleBy(x: 1, y: -1)
                 let frame = CTFramesetterCreateFrame(setter, CFRange(location: 0, length: 0), CGPath(rect: CGRect(x: 0, y: 0, width: bounds.width - 48, height: slice.height), transform: nil), nil)
-                if slice.paragraph == spokenParagraph,
-                   let highlight = SpeechTextSegment.localIntersection(spokenRange, in: slice.range) {
+                var highlights: [(NSRange, UIColor)] = marks.filter { $0.position == slice.paragraph }.compactMap { mark in
+                    guard let range = SpeechTextSegment.localIntersection(NSRange(location: mark.utf16Offset, length: mark.utf16Length), in: slice.range) else { return nil }
+                    return (range, mark.color == .mint ? UIColor.systemGreen : mark.color == .rose ? UIColor.systemPink : UIColor.systemYellow)
+                }
+                if slice.paragraph == spokenParagraph, let range = SpeechTextSegment.localIntersection(spokenRange, in: slice.range) {
+                    highlights.append((range, UIColor.systemYellow))
+                }
+                for (highlight, color) in highlights {
                     let lines = CTFrameGetLines(frame) as! [CTLine]
                     var origins = [CGPoint](repeating: .zero, count: lines.count)
                     if !lines.isEmpty { CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins) }
-                    context.setFillColor(UIColor.systemYellow.withAlphaComponent(0.3).cgColor)
+                    context.setFillColor(color.withAlphaComponent(0.3).cgColor)
                     for (index, line) in lines.enumerated() {
                         let range = CTLineGetStringRange(line)
                         let overlap = NSIntersectionRange(highlight, NSRange(location: range.location, length: range.length))
